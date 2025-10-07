@@ -1,0 +1,10 @@
+# Dependencies for Python/pip
+# Install these dependencies by activating virtual environment and running
+# pip install -r requirements.txt
+
+# Dependency for parsing CS2 demos
+demoparser2
+
+# Python formatting
+autopep8
+pylint
