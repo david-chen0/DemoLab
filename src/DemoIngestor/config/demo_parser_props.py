@@ -1,3 +1,6 @@
+from enum import Enum
+from typing import List
+
 """
 Demo Parser Properties Configuration
 
@@ -5,7 +8,9 @@ This module contains all available properties that can be passed to the demopars
 parse_ticks() method as wanted_props. Properties are organized as enum values
 that callers can select individually.
 
-Reference: https://github.com/LaihoE/demoparser/blob/a344aae17a14a54aa15aab6fa45ce30c1985382e/src/parser/src/maps.rs#L975
+Reference: https://github.com/LaihoE/demoparser/blob/main/README.md
+Note that neither this list or the list in the README above are guaranteed to be representative of all the properties
+Need to figure out where this all the properties are being fetched from
 
 Usage Examples:
     # Use individual properties
@@ -19,19 +24,16 @@ Usage Examples:
     basic_props = DemoParserProps.get_basic()
 """
 
-from enum import Enum
-from typing import List
-
 
 class DemoParserProps(Enum):
     """
     Enum containing all available demo parser properties.
     Each property can be used individually or combined with others.
     """
-    
+
     # Player Position & Movement Properties
     X = "X"                           # X coordinate
-    Y = "Y"                           # Y coordinate  
+    Y = "Y"                           # Y coordinate
     Z = "Z"                           # Z coordinate
     PITCH = "pitch"                   # View pitch angle
     YAW = "yaw"                       # View yaw angle
@@ -41,31 +43,33 @@ class DemoParserProps(Enum):
 
     # Player State & Health Properties
     HP = "hp"                         # Health points
-    ARMOR_VALUE = "armor_value"       # Armor value
     IS_ALIVE = "is_alive"             # Whether player is alive
     IS_BOT = "is_bot"                 # Whether player is a bot
     IS_CONNECTED = "is_connected"     # Whether player is connected
     IS_DEFUSING = "is_defusing"       # Whether player is defusing
-    IS_IN_BOMBSITE = "is_in_bombsite" # Whether player is in bombsite
-    IS_IN_BUY_ZONE = "is_in_buy_zone" # Whether player is in buy zone
+    IS_IN_BOMBSITE = "is_in_bombsite"  # Whether player is in bombsite
+    IS_IN_BUY_ZONE = "is_in_buy_zone"  # Whether player is in buy zone
     IS_SCOPED = "is_scoped"           # Whether player is scoped
     IS_WALKING = "is_walking"         # Whether player is walking
     IS_DUCKING = "is_ducking"         # Whether player is ducking
 
     # Player Identity & Team Properties
     PLAYER_NAME = "player_name"       # Player name
-    PLAYER_STEAMID = "player_steamid" # Player Steam ID
+    PLAYER_STEAMID = "player_steamid"  # Player Steam ID
     TEAM_NAME = "team_name"           # Team name
-    TEAM_NUM = "team_num"             # Team number (2 = Terrorist, 3 = Counter-Terrorist)
-    TEAM_CLAN_NAME = "team_clan_name" # Team clan name
+    # Team number (2 = Terrorist, 3 = Counter-Terrorist)
+    TEAM_NUM = "team_num"
+    TEAM_CLAN_NAME = "team_clan_name"  # Team clan name
 
     # Economy & Equipment Properties
     CASH = "cash"                                         # Current money
     EQUIPMENT_VALUE = "equipment_value"                   # Total equipment value
-    EQUIPMENT_VALUE_THIS_ROUND = "equipment_value_this_round" # Equipment value for current round
+    # Equipment value for current round
+    EQUIPMENT_VALUE_THIS_ROUND = "equipment_value_this_round"
     CASH_SPENT_THIS_ROUND = "cash_spent_this_round"       # Money spent this round
-    HAS_DEFUSE_KIT = "has_defuse_kit"                     # Whether player has defuse kit
-    HAS_HELMET = "has_helmet"                             # Whether player has helmet
+    ARMOR_VALUE = "armor_value"       # Armor value
+    HAS_HELMET = "has_helmet"         # Whether player has helmet
+    HAS_DEFUSE_KIT = "has_defuse_kit"  # Whether player has defuse kit
 
     # Weapons & Equipment Properties
     ACTIVE_WEAPON_NAME = "active_weapon_name"         # Currently active weapon
@@ -93,11 +97,11 @@ class DemoParserProps(Enum):
     def get_category(cls, category: str) -> List['DemoParserProps']:
         """
         Get all properties from a specific category.
-        
+
         Args:
             category: Category name ('position', 'player_state', 'identity', 
                      'economy', 'weapons', 'game_state', 'round_state')
-        
+
         Returns:
             List of DemoParserProps enum values for the category.
         """
@@ -132,12 +136,13 @@ class DemoParserProps(Enum):
                 cls.IS_WARMUP_PERIOD, cls.GAME_PHASE
             ]
         }
-        
+
         if category not in categories:
-            raise ValueError(f"Invalid category '{category}'. Valid categories: {list(categories.keys())}")
-        
+            raise ValueError(
+                f"Invalid category '{category}'. Valid categories: {list(categories.keys())}")
+
         return categories[category]
-    
+
     @classmethod
     def get_basic(cls) -> List['DemoParserProps']:
         """Example list of basic demo props"""
@@ -145,12 +150,12 @@ class DemoParserProps(Enum):
             cls.TICK, cls.SECONDS, cls.PLAYER_NAME, cls.PLAYER_STEAMID, cls.TEAM_NUM,
             cls.X, cls.Y, cls.Z, cls.HP, cls.IS_ALIVE, cls.SCORE, cls.KILLS, cls.DEATHS
         ]
-    
+
     @classmethod
     def get_all(cls) -> List['DemoParserProps']:
         """Return all available properties."""
         return list(cls)
-    
+
     @classmethod
     def to_strings(cls, props: List['DemoParserProps']) -> List[str]:
         """Convert list of enum values to list of string values for demoparser2."""
@@ -158,12 +163,19 @@ class DemoParserProps(Enum):
 
 
 # Backward compatibility - maintain original constants as lists of strings
-POSITION_PROPS = DemoParserProps.to_strings(DemoParserProps.get_category('position'))
-PLAYER_STATE_PROPS = DemoParserProps.to_strings(DemoParserProps.get_category('player_state'))
-IDENTITY_PROPS = DemoParserProps.to_strings(DemoParserProps.get_category('identity'))
-ECONOMY_PROPS = DemoParserProps.to_strings(DemoParserProps.get_category('economy'))
-WEAPON_PROPS = DemoParserProps.to_strings(DemoParserProps.get_category('weapons'))
-GAME_STATE_PROPS = DemoParserProps.to_strings(DemoParserProps.get_category('game_state'))
-ROUND_STATE_PROPS = DemoParserProps.to_strings(DemoParserProps.get_category('round_state'))
+POSITION_PROPS = DemoParserProps.to_strings(
+    DemoParserProps.get_category('position'))
+PLAYER_STATE_PROPS = DemoParserProps.to_strings(
+    DemoParserProps.get_category('player_state'))
+IDENTITY_PROPS = DemoParserProps.to_strings(
+    DemoParserProps.get_category('identity'))
+ECONOMY_PROPS = DemoParserProps.to_strings(
+    DemoParserProps.get_category('economy'))
+WEAPON_PROPS = DemoParserProps.to_strings(
+    DemoParserProps.get_category('weapons'))
+GAME_STATE_PROPS = DemoParserProps.to_strings(
+    DemoParserProps.get_category('game_state'))
+ROUND_STATE_PROPS = DemoParserProps.to_strings(
+    DemoParserProps.get_category('round_state'))
 ALL_PROPS = DemoParserProps.to_strings(DemoParserProps.get_all())
 BASIC_PROPS = DemoParserProps.to_strings(DemoParserProps.get_basic())
