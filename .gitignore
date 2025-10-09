@@ -1,2 +1,3 @@
 notes.md
 *.dem
+*__pycache__*

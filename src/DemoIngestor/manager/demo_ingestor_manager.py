@@ -41,33 +41,55 @@ class DemoIngestorManager:
         DemoParserProps.ASSISTS,
         DemoParserProps.GAME_PHASE
     ])
+    
+    parser: DemoParser
 
-    def __init__(self): return
+    def __init__(self, filepath: str):
+        """
+        Class is not meant to be a singleton, as it should be instantiated per file
+        """
+        self.parser = DemoParser(filepath)
+    
+    
+    def _get_match_start_tick(self) -> int:
+        """
+        Returns the tick that the match started.
+        Useful for filtering for all ticks after match start
+        """
+        begin_match_event = self.parser.parse_event(DemoParserEvents.BEGIN_NEW_MATCH.value)
+        return begin_match_event['tick'].iloc[0] if begin_match_event is not None else 0
 
-    def ingest_demo(self, filepath: str):
+    def ingest_demo(self):
         """
         this will do the actual logic of ingesting the demo and storing it
 
         HOW DO WE WANT TO STORE THE OUTPUT THOUGH? WILL IT BE A LIST OF DELTAS
         PER TICK GROUP?
         """
-        parser = DemoParser(filepath)
+        # lets add a temp thing here that lists all events, and if its not in the list of
+        # game events that we have we output it at the end
+        # todo: remove this after we've established all the possible events
+        all_game_events = self.parser.list_game_events()
+        all_events_in_config = DemoParserEvents.get_all()
+        for event in all_game_events:
+            if event not in all_events_in_config:
+                print(f"Found a new event that is not in our config: {event}")
+        
+        
+        # Filter out events before the match start
+        match_start_tick = self._get_match_start_tick()
+        all_events = self.parser.parse_events(["all"])
+        filtered_events = [(event_name, df[df['tick'] >= match_start_tick]) for event_name, df in all_events]
 
-        # SAMPLE CODE, COULD BE HELPFUL
-        # https://github.com/LaihoE/demoparser/blob/a344aae17a14a54aa15aab6fa45ce30c1985382e/examples/efficiently_parse_multi_events_and_ticks/index.py
-        # # Filter out events before the match start
-        # filtered_events = [(event_name, df[df['tick'] >= match_start_tick]) for event_name, df in all_events]
-
-        # wanted_props = ["equipment_value_this_round", "cash_spent_this_round", "is_alive", "team_num", "player_name", "score", "player_steamid"]
-        # tick_values = set()
-        # for _, df in filtered_events:
-        #     tick_values.update(df['tick'].unique())
-
-        # Fetching all the ticks from the game, represented as a Pandas DataFrame
+        # Getting all the tick values in the game that we want
         tick_values = set()
-        all_ticks = parser.parse_ticks(
+        for _, df in filtered_events:
+            tick_values.update(df['tick'].unique())
+            
+        # Getting all the information we want(from wanted_props) at each tick
+        all_ticks = self.parser.parse_ticks(
             wanted_props=self.wanted_props,
-            ticks=tick_values
+            ticks=list(tick_values)
         )
 
         # Storing the tick information by tick value
@@ -77,5 +99,4 @@ class DemoIngestorManager:
                 all_ticks_map[tick.tick] = [tick]
             else:
                 all_ticks_map[tick.tick].append(tick)
-
-        return
+        print(all_ticks_map)
