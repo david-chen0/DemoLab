@@ -5,14 +5,15 @@ from typing import List
 class DemoParserEvents(Enum):
     """
     Enum containing all available demo parser events.
-    
+
     "all" can also be passed as an argument to get all events.
 
     Ordered alphabetically for now, can figure out a better way to organize these later
 
-    THIS MIGHT BE A POSSIBLE WAY TO JUST GET ALL THE EVENT NAMES:
-    TODO: TRY THIS
-    event_names = parser.list_game_events()
+    Documentation for all events: https://cs2.poggu.me/dumped-data/game-events/
+
+    TODO: Need a way to annotate what info each event encodes(ex: all events return the tick and the event name,
+    bomb_planted also gives player who planted and site)
     """
 
     # Announcing end of warmup, halftime, end of match, etc
@@ -30,7 +31,8 @@ class DemoParserEvents(Enum):
     CS_PRE_RESTART = "cs_pre_restart"    # TODO: don't know this
     CS_ROUND_FINAL_BEEP = "cs_round_final_beep"    # Sound to indicate round finished
     CS_ROUND_START_BEEP = "cs_round_start_beep"    # Sound to indicate round started
-    CS_WIN_PANEL_MATCH = "cs_win_panel_match"    # Final panel shown at the end of the game
+    # Final panel shown at the end of the game
+    CS_WIN_PANEL_MATCH = "cs_win_panel_match"
     DECOY_DETONATE = "decoy_detonate"    # Decoy blew up
     DECOY_STARTED = "decoy_started"     # Decoy started making noise
     FLASHBANG_DETONATE = "flashbang_detonate"     # Flashbang popped
@@ -50,15 +52,21 @@ class DemoParserEvents(Enum):
     PLAYER_JUMP = "player_jump"   # Player jumped
     PLAYER_SPAWN = "player_spawn"   # Player spawned
     PLAYER_TEAM = "player_team"   # TODO: don't know this
-    ROUND_ANNOUNCE_FINAL = "round_announce_final"   # Announcement for final round of the game
-    ROUND_ANNOUNCE_LAST_ROUND_HALF = "round_announce_last_round_half"   # Announcement for final round of the half
-    ROUND_ANNOUNCE_MATCH_POINT = "round_announce_match_point"   # Announcement for match point
-    ROUND_ANNOUNCE_MATCH_STARt = "round_announce_match_start"   # Announcement for start of match
+    # Announcement for final round of the game
+    ROUND_ANNOUNCE_FINAL = "round_announce_final"
+    # Announcement for final round of the half
+    ROUND_ANNOUNCE_LAST_ROUND_HALF = "round_announce_last_round_half"
+    # Announcement for match point
+    ROUND_ANNOUNCE_MATCH_POINT = "round_announce_match_point"
+    # Announcement for start of match
+    ROUND_ANNOUNCE_MATCH_START = "round_announce_match_start"
+    ROUND_END = "round_end"     # Round ended
     ROUND_FREEZE_END = "round_freeze_end"   # Round freeze ended
     ROUND_OFFICIALLY_ENDED = "round_officially_ended"   # Round ended
     ROUND_POSTSTART = "round_poststart"    # TODO: don't know this
     ROUND_PRESTART = "round_prestart"    # TODO: don't know this
-    ROUND_TIME_WARNING = "round_time_warning"   # Time warning on the time left in a round
+    # Time warning on the time left in a round
+    ROUND_TIME_WARNING = "round_time_warning"
     SERVER_CVAR = "server_cvar"   # TODO: don't know this
     SMOKEGRENADE_DETONATE = "smokegrenade_detonate"    # Smoke grenade plumed
     SMOKEGRENADE_EXPIRED = "smokegrenade_expired"   # Smoke grenade faded away

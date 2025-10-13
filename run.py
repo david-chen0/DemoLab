@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-Demo Event Lister
-
-This script parses a local demo file and prints all available game events
-that can be used with the parse_event() method.
-"""
-
 from demoparser2 import DemoParser
 import os
 from src.DemoIngestor.config.demo_parser_events import DemoParserEvents
@@ -64,11 +56,12 @@ def main():
     # Testing the manager
     demo_ingestor_manager_test(demo_path)
 
-    # Initialize the parser
-    parser = DemoParser(demo_path)
+    # # Initialize the parser
+    # parser = DemoParser(demo_path)
 
     # list_game_events_test(parser)
     # parse_event_test(parser, DemoParserEvents.BEGIN_NEW_MATCH.value)
+    # parse_event_test(parser, DemoParserEvents.ROUND_END.value)
 
 
 if __name__ == "__main__":

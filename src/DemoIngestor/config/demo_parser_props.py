@@ -152,30 +152,11 @@ class DemoParserProps(Enum):
         ]
 
     @classmethod
-    def get_all(cls) -> List['DemoParserProps']:
+    def get_all(cls) -> List[str]:
         """Return all available properties."""
-        return list(cls)
+        return DemoParserProps.to_strings(list(cls))
 
     @classmethod
     def to_strings(cls, props: List['DemoParserProps']) -> List[str]:
         """Convert list of enum values to list of string values for demoparser2."""
         return [prop.value for prop in props]
-
-
-# Backward compatibility - maintain original constants as lists of strings
-POSITION_PROPS = DemoParserProps.to_strings(
-    DemoParserProps.get_category('position'))
-PLAYER_STATE_PROPS = DemoParserProps.to_strings(
-    DemoParserProps.get_category('player_state'))
-IDENTITY_PROPS = DemoParserProps.to_strings(
-    DemoParserProps.get_category('identity'))
-ECONOMY_PROPS = DemoParserProps.to_strings(
-    DemoParserProps.get_category('economy'))
-WEAPON_PROPS = DemoParserProps.to_strings(
-    DemoParserProps.get_category('weapons'))
-GAME_STATE_PROPS = DemoParserProps.to_strings(
-    DemoParserProps.get_category('game_state'))
-ROUND_STATE_PROPS = DemoParserProps.to_strings(
-    DemoParserProps.get_category('round_state'))
-ALL_PROPS = DemoParserProps.to_strings(DemoParserProps.get_all())
-BASIC_PROPS = DemoParserProps.to_strings(DemoParserProps.get_basic())
