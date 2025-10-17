@@ -5,6 +5,16 @@
 # Dependency for parsing CS2 demos
 demoparser2
 
+# Data processing
+pandas
+pyarrow
+
 # Python formatting
 autopep8
 pylint
+
+# Tracking system info(memory usage, CPU waits, etc)
+psutil
+
+# Backoff decorator(ex: exponential backoff)
+backoff
