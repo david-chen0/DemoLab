@@ -6,8 +6,6 @@ class DemoParserEvents(Enum):
     """
     Enum containing all available demo parser events.
 
-    "all" can also be passed as an argument to get all events.
-
     Ordered alphabetically for now, can figure out a better way to organize these later
 
     Documentation for all events: https://cs2.poggu.me/dumped-data/game-events/

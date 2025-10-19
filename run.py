@@ -1,7 +1,7 @@
 from demoparser2 import DemoParser
 import os
-from src.DemoIngestor.config.demo_parser_events import DemoParserEvents
-from src.DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
+from backend.src.config.demo_parser_events import DemoParserEvents
+from backend.src.DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 
 
 def demo_ingestor_manager_test(filepath: str):

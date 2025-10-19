@@ -1,8 +1,9 @@
 import pandas as pd
 from demoparser2 import DemoParser
-from ..config.demo_parser_events import DemoParserEvents
-from ..config.demo_parser_props import DemoParserProps
-from ...util.async_job_manager import AsyncJobManager
+from ...config.demo_parser_events import DemoParserEvents
+from ...config.demo_parser_props import DemoParserProps
+from ...util.backoff_wrapper import BackoffWrapper
+from ...util.demo_file_store import DemoFileStore
 
 
 class DemoIngestorManager:
@@ -52,14 +53,13 @@ class DemoIngestorManager:
         Class is not meant to be a singleton, as it should be instantiated per file
         """
         self.parser = DemoParser(filepath)
-        print(f"Successfully created parser for file at {filepath}")
 
     def _get_ticks_for_event(self, events: list[str]) -> dict[str, list[int]]:
         """
         Returns a dict mapping from the event name to the ticks where that even happened, in ascending order.
         """
         event_ticks_map = {}
-        for event_name, event_df in self.parser.parse_events(events):
+        for event_name, event_df in BackoffWrapper.with_backoff_expect_result(self.parser.parse_events, events):
             event_ticks_map[event_name] = event_df[DemoParserProps.TICK.value].tolist(
             )
         return event_ticks_map
@@ -121,14 +121,16 @@ class DemoIngestorManager:
 
         # TODO: This is a temporary mechanic to make sure we get all the possible events
         # Once our list of events is exhaustive, remove this section
-        all_game_events = self.parser.list_game_events()
+        all_game_events = BackoffWrapper.with_backoff_expect_result(
+            self.parser.list_game_events)
         for event in all_game_events:
             if event not in DemoParserEvents.get_all():
                 print(f"Found a new event that is not in our config: {event}")
 
         # Filter out events before the match start
         match_start_tick = self._get_match_start_tick()
-        all_events = self.parser.parse_events(DemoParserProps.get_all())
+        all_events = BackoffWrapper.with_backoff_expect_result(
+            self.parser.parse_events, DemoParserProps.get_all())
         filtered_events = [(event_name, df[df[DemoParserProps.TICK.value]
                             >= match_start_tick]) for event_name, df in all_events]
         print(f"Match start tick: {match_start_tick}")
@@ -139,9 +141,10 @@ class DemoIngestorManager:
             tick_values.update(df[DemoParserProps.TICK.value].unique())
 
         # Getting all the information we want(from wanted_props) at each tick
-        all_ticks_df = self.parser.parse_ticks(
+        all_ticks_df = BackoffWrapper.with_backoff_expect_result(
+            self.parser.parse_ticks,
             wanted_props=self.wanted_props,
-            ticks=list(tick_values)
+            ticks=list(tick_values),
         ).sort_values(by=DemoParserProps.TICK.value)
         print(f"Dataframe fields: {all_ticks_df.columns.tolist()}")
         print(f"Number of elements in DF: {str(all_ticks_df.size)}")
@@ -158,29 +161,4 @@ class DemoIngestorManager:
         print(f"Rounds by tick: {rounds_by_ticks}")
 
         # TODO: Commented out for now, uncomment once ready to parse the Parquet files
-        # # We need to manually count the rounds rather than relying on the round number in the DF since
-        # # the game data could display the round wrong(ex: Faceit counting knife round as round 1)
-        # round_num = 1
-        # for round_prestart_tick, round_end_tick in rounds_by_ticks:
-        #     # Normalize the fields
-
-        #     # Partition the DataFrame to get all the ticks in this round, inclusive of the prestart and end tick
-        #     start_idx = all_ticks_df[DemoParserProps.TICK.value].searchsorted(round_prestart_tick, side="left")
-        #     end_idx = all_ticks_df[DemoParserProps.TICK.value].searchsorted(round_end_tick, side="right")
-        #     round_df = all_ticks_df.iloc[start_idx:end_idx]
-
-        #     # Adding a synthetic round number column to give the Parquet file for partitioning
-        #     # TODO: Is there a better way to do this? this makes it so that our slice is a copy rather than a view, which could eat memory and time
-        #     synthetic_round_num_col_name = "round_num"
-        #     round_df[synthetic_round_num_col_name] = round_num
-        #     round_num += 1
-
-        #     # Store the partition in a compressed Parquet file
-        #     round_df.to_parquet(
-        #         "demo_data/", # TODO: Change this location once we decide how we want to store it
-        #         engine="pyarrow",
-        #         compression="snappy", # TODO: Figure out if this is actually the one we want to use
-        #         partition_cols=[synthetic_round_num_col_name],
-        #         index=False,
-        #     )
-        #     print(f"Created the Parquet partition for round {round_num}")
+        # DemoFileStore.store_demo_file(all_ticks_df, rounds_by_ticks)
