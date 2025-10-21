@@ -18,3 +18,11 @@ psutil
 
 # Backoff decorator(ex: exponential backoff)
 backoff
+
+# Type validation
+pydantic
+pydantic-settings
+
+# Backend APIs
+fastapi
+uvicorn

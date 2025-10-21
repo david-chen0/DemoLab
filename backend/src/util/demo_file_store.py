@@ -63,4 +63,9 @@ class DemoFileStore:
             Retrieves the demo corresponding to the input.
             This will retrieve all the Parquet partitions, merge them back together, and convert them back to a Pandas DataFrame.
             """
+            # TODO: I THINK WHAT WE HAVE TO DO IS NOT CARE ABOUT THE PARQUET FILES
+            # FILE NAME SHOULD BE OPTIONAL? WE SHOULD JUST ORDER IT BY TIME AND PROCESS IT LIKE A TIME-BASED QUEUE
+            # long term we should process based on demo id and store the processed ids in a db
+            # for now, we should just do this with a queue or dict and only process/return it if the queue doesn't contain it
+            # or just set up postgre or smth like that
             return 

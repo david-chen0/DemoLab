@@ -31,7 +31,7 @@ class BackoffWrapper:
         """
         print(f"Calling {func.__name__} with args {args} and kwargs {kwargs}")
         result = func(*args, **kwargs)
-        if not result:
+        if result is None:
             print("A result was expected for the function call, but none was returned")
             raise Exception("A result was expected for the function call, but none was returned")
         return result

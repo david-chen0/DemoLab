@@ -5,8 +5,8 @@ from backend.src.DemoIngestor.manager.demo_ingestor_manager import DemoIngestorM
 
 
 def demo_ingestor_manager_test(filepath: str):
-    demo_ingestor_manager = DemoIngestorManager(filepath)
-    demo_ingestor_manager.ingest_demo()
+    demo_ingestor_manager = DemoIngestorManager()
+    demo_ingestor_manager.ingest_demo(filepath)
 
 
 def list_game_events_test(parser: DemoParser):
