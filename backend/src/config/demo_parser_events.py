@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 from typing import List
 
 
@@ -14,63 +14,76 @@ class DemoParserEvents(Enum):
     bomb_planted also gives player who planted and site)
     """
 
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list) -> str:
+        """
+        Auto converts the enum's values to the lowercase version
+        """
+        return name.lower()
+
     # Announcing end of warmup, halftime, end of match, etc
-    ANNOUNCE_PHASE_END = "announce_phase_end"
-    BEGIN_NEW_MATCH = "begin_new_match"    # Start of match
-    BOMB_BEGINDEFUSE = "bomb_begindefuse"  # Start of bomb defuse
-    BOMB_BEGINPLANT = "bomb_beginplant"    # Start of bomb plant
-    BOMB_DEFUSED = "bomb_defused"    # Bomb was defused
-    BOMB_DROPPED = "bomb_dropped"    # Bomb was dropped
-    BOMB_EXPLODED = "bomb_exploded"  # Bomb exploded
-    BOMB_PICKUP = "bomb_pickup"   # Bomb was picked up
-    BOMB_PLANTED = "bomb_planted"    # Bomb was planted
-    BUYTIME_ENDED = "buytime_ended"   # Buytime period ended
-    CHAT_MESSAGE = "chat_message"   # Chat message was sent
-    CS_PRE_RESTART = "cs_pre_restart"    # TODO: don't know this
-    CS_ROUND_FINAL_BEEP = "cs_round_final_beep"    # Sound to indicate round finished
-    CS_ROUND_START_BEEP = "cs_round_start_beep"    # Sound to indicate round started
-    # Final panel shown at the end of the game
-    CS_WIN_PANEL_MATCH = "cs_win_panel_match"
-    DECOY_DETONATE = "decoy_detonate"    # Decoy blew up
-    DECOY_STARTED = "decoy_started"     # Decoy started making noise
-    FLASHBANG_DETONATE = "flashbang_detonate"     # Flashbang popped
-    HEGRENADE_DETONATE = "hegrenade_detonate"     # HE grenade blew up
-    HLTV_CHASE = "hltv_chase"   # TODO: don't know this
-    HLTV_FIXED = "hltv_fixed"   # TODO: don't know this
-    HLTV_VERSIONINFO = "hltv_versioninfo"   # TODO: don't know this
-    INFERNO_EXPIRE = "inferno_expire"    # Molly ran out
-    INFERNO_STARTBURN = "inferno_startburn"   # Molly started burning
-    ITEM_EQUIP = "item_equip"    # Item has been equipped
-    ITEM_PICKUP = "item_pickup"   # Item has been picked up
-    PLAYER_BLIND = "player_blind"   # Player has been blinded
-    PLAYER_DEATH = "player_death"   # Player has died
-    PLAYER_DISCONNECT = "player_disconnect"    # Player has disconnected
-    PLAYER_FOOTSTEP = "player_footstep"    # Player made a footstep
-    PLAYER_HURT = "player_hurt"   # Player was hurt
-    PLAYER_JUMP = "player_jump"   # Player jumped
-    PLAYER_SPAWN = "player_spawn"   # Player spawned
-    PLAYER_TEAM = "player_team"   # TODO: don't know this
-    # Announcement for final round of the game
-    ROUND_ANNOUNCE_FINAL = "round_announce_final"
+    ANNOUNCE_PHASE_END = auto()    # End of announce phase
+    BEGIN_NEW_MATCH = auto()    # Start of match
+    BOMB_BEGINDEFUSE = auto()    # Start of bomb defuse
+    BOMB_BEGINPLANT = auto()    # Start of bomb plant
+    BOMB_DEFUSED = auto()    # Bomb was defused
+    BOMB_DROPPED = auto()    # Bomb was dropped
+    BOMB_EXPLODED = auto()    # Bomb exploded
+    BOMB_PICKUP = auto()    # Bomb was picked up
+    BOMB_PLANTED = auto()    # Bomb was planted
+    BUYTIME_ENDED = auto()    # Buytime period ended
+    CHAT_MESSAGE = auto()    # Chat message was sent
+    CS_INTERMISSION = auto()    # TODO: don't know this
+    CS_PRE_RESTART = auto()    # TODO: don't know this
+    CS_ROUND_FINAL_BEEP = auto()    # Sound to indicate round finished
+    CS_ROUND_START_BEEP = auto()    # Sound to indicate round started
+    CS_WIN_PANEL_MATCH = auto()    # Final panel shown at the end of the game
+    DECOY_DETONATE = auto()    # Decoy blew up
+    DECOY_STARTED = auto()    # Decoy started making noise
+    ENTITY_KILLED = auto()    # TODO: don't know this, i think this refers to non-player entities like chickens
+    FLASHBANG_DETONATE = auto()    # Flashbang popped
+    GRENADE_THROWN = auto()    # Grenade was thrown
+    HEGRENADE_DETONATE = auto()    # HE grenade blew up
+    HLTV_CHASE = auto()    # TODO: don't know this
+    HLTV_FIXED = auto()    # TODO: don't know this
+    HLTV_VERSIONINFO = auto()    # TODO: don't know this
+    INFERNO_EXPIRE = auto()    # Molly ran out
+    INFERNO_STARTBURN = auto()    # Molly started burning
+    ITEM_EQUIP = auto()    # Item has been equipped
+    ITEM_PICKUP = auto()    # Item has been picked up
+    PLAYER_BLIND = auto()    # Player has been blinded
+    PLAYER_CONNECT_FULL = auto()    # All players have connected
+    PLAYER_DEATH = auto()    # Player has died
+    PLAYER_DISCONNECT = auto()    # Player has disconnected
+    PLAYER_FOOTSTEP = auto()    # Player made a footstep
+    PLAYER_GIVEN_C4 = auto()    # Player was given C4
+    PLAYER_HURT = auto()    # Player was hurt
+    PLAYER_JUMP = auto()    # Player jumped
+    PLAYER_PING = auto()    # Player pinged
+    PLAYER_PING_STOP = auto()    # Player ping went away
+    PLAYER_SOUND = auto()    # Player made a sound
+    PLAYER_SPAWN = auto()    # Player spawned
+    PLAYER_TEAM = auto()    # TODO: don't know this
+    ROUND_ANNOUNCE_FINAL = auto()    # Announcement for final round of the game
     # Announcement for final round of the half
-    ROUND_ANNOUNCE_LAST_ROUND_HALF = "round_announce_last_round_half"
-    # Announcement for match point
-    ROUND_ANNOUNCE_MATCH_POINT = "round_announce_match_point"
-    # Announcement for start of match
-    ROUND_ANNOUNCE_MATCH_START = "round_announce_match_start"
-    ROUND_END = "round_end"     # Round ended
-    ROUND_FREEZE_END = "round_freeze_end"   # Round freeze ended
-    ROUND_OFFICIALLY_ENDED = "round_officially_ended"   # Round ended
-    ROUND_POSTSTART = "round_poststart"    # TODO: don't know this
-    ROUND_PRESTART = "round_prestart"    # TODO: don't know this
-    # Time warning on the time left in a round
-    ROUND_TIME_WARNING = "round_time_warning"
-    SERVER_CVAR = "server_cvar"   # TODO: don't know this
-    SMOKEGRENADE_DETONATE = "smokegrenade_detonate"    # Smoke grenade plumed
-    SMOKEGRENADE_EXPIRED = "smokegrenade_expired"   # Smoke grenade faded away
-    WEAPON_FIRE = "weapon_fire"   # Player fired weapon
-    WEAPON_RELOAD = "weapon_reload"   # Player reloaded weapon
-    WEAPON_ZOOM = "weapon_zoom"   # Player zoomed weapon
+    ROUND_ANNOUNCE_LAST_ROUND_HALF = auto()
+    ROUND_ANNOUNCE_MATCH_POINT = auto()    # Announcement for match point
+    ROUND_ANNOUNCE_MATCH_START = auto()    # Announcement for start of match
+    ROUND_END = auto()    # Round ended
+    ROUND_END_UPLOAD_STATS = auto()    # TODO: don't know this
+    ROUND_FREEZE_END = auto()    # Round freeze ended
+    ROUND_OFFICIALLY_ENDED = auto()    # Round ended
+    ROUND_POSTSTART = auto()    # TODO: don't know this
+    ROUND_PRESTART = auto()    # TODO: don't know this
+    ROUND_START = auto()    # Round started
+    ROUND_TIME_WARNING = auto()    # Time warning on the time left in a round
+    SERVER_CVAR = auto()    # TODO: don't know this
+    SMOKEGRENADE_DETONATE = auto()    # Smoke grenade plumed
+    SMOKEGRENADE_EXPIRED = auto()    # Smoke grenade faded away
+    VOTE_CAST = auto()    # Vote was casted
+    WEAPON_FIRE = auto()    # Player fired weapon
+    WEAPON_RELOAD = auto()    # Player reloaded weapon
+    WEAPON_ZOOM = auto()    # Player zoomed weapon
 
     @classmethod
     def get_all(cls) -> List[str]:

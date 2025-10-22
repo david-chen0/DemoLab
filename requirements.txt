@@ -14,6 +14,7 @@ autopep8
 pylint
 
 # Tracking system info(memory usage, CPU waits, etc)
+# TODO: Remove this once we move the computing to a cloud service
 psutil
 
 # Backoff decorator(ex: exponential backoff)
@@ -26,3 +27,6 @@ pydantic-settings
 # Backend APIs
 fastapi
 uvicorn
+
+# Hashing
+blake3

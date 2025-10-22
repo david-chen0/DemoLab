@@ -1,4 +1,7 @@
+import blake3
+import os
 import pandas as pd
+from typing import Optional
 from ..config.demo_parser_props import DemoParserProps
 
 
@@ -8,19 +11,44 @@ class DemoFileStore:
     demo_file_location = "demo_data/"
 
     @staticmethod
+    def get_file_hash(
+        filepath: str
+    ) -> str:
+        hasher = blake3.blake3()
+        
+        # Updating the hash in 4MB chunks
+        chunk_size = 4 * (1024 ** 2)
+        with open(filepath, "rb") as f:
+            while chunk := f.read(chunk_size):
+                hasher.update(chunk)
+                
+        return hasher.hexdigest()
+
+    @staticmethod
     def store_demo_file(
+        hash_value: str,
         all_ticks_df: pd.DataFrame,
         rounds_by_ticks: list[tuple[int, int]],
     ):
         """
         This method takes in the input demo data and stores it in a compressed Parquet file.
+        The ticks are partitioned by round, as each round's data is independent of each other
+        The Parquet file is partitioned by round, giving structure like:
+            demo_data/    <--- Path it will be stored at
+            └── round_num=1/      <---- Subdirectory
+                └── part-0.parquet      <----- Parquet partition
+            └── round_num=2/
+                └── part-0.parquet
+                ...
+            └── round_num=24/
+                └── part-0.parquet
+            We choose Parquet since there is a large amount of data and the file only needs to be constructed once, but read multiple times
+            Can easily convert Parquet files to JSON for human readability(if required)
+            Compression will be done with TODO: figure out what compression(ex: snappy, ZSTD, BROTLI)
 
         args:
         all_ticks_df: Dataframe containing all the info we want at each tick. Function assumes data is sorted by tick
         rounds_by_ticks: List of (start_tick, end_tick) tuples representing the rounds
-
-        TODO: NEED SOME WAY OF UNIQUELY IDENTIFYING THE DEMO FILE
-        THAT WAY WE CAN STORE IT IN A LOCATION THAT WE'LL KNOW AND ALSO EASILY PICK IT UP AT ANY TIME
 
         TODO: THIS IS CURRENTLY STORED LOCALLY, MOVE IT OVER TO STORE IN BLOB STORE(OR WHATEVER WE DECIDE)
         """
@@ -46,26 +74,54 @@ class DemoFileStore:
 
             # Store the partition in a compressed Parquet file
             round_df.to_parquet(
-                f"{DemoFileStore.demo_file_location}/", # TODO: NEED TO PUT THE UNIQUE IDENTIFIER THERE, WHAT SHOULD IT BE? UUID? BUT HOW WOULD WE GET IT ON READ PATH
+                f"{DemoFileStore.demo_file_location}/{hash_value}",
                 engine="pyarrow",
                 compression="snappy",  # TODO: Figure out if this is actually the one we want to use
                 partition_cols=[synthetic_round_num_col_name],
                 index=False,
             )
             print(f"Created the Parquet partition for round {round_num}")
-            
-    
+
         @staticmethod
         def get_demo_file(
-            demo_file_id: str,
+            hash_value: Optional[str],
+            round_num: Optional[int],
         ) -> pd.DataFrame:
             """
             Retrieves the demo corresponding to the input.
-            This will retrieve all the Parquet partitions, merge them back together, and convert them back to a Pandas DataFrame.
+            If hash_value is provided, then it will retrieve the demo that has the corresponding hash value.
+            If round_num is provided, then it will only retrieve the Parquet partition for that round. round_num can not be specified if hash_value is not specified.
+            If none of these values are provided, then the entire demo of the first alphanumeric demo we have stored will be returned.
+            
+            args:
+                hash_value: The optional hash value of the demo, which is what we use to identify the demos
+                round_num: The optional round number to retrieve the data for
             """
-            # TODO: I THINK WHAT WE HAVE TO DO IS NOT CARE ABOUT THE PARQUET FILES
-            # FILE NAME SHOULD BE OPTIONAL? WE SHOULD JUST ORDER IT BY TIME AND PROCESS IT LIKE A TIME-BASED QUEUE
-            # long term we should process based on demo id and store the processed ids in a db
-            # for now, we should just do this with a queue or dict and only process/return it if the queue doesn't contain it
-            # or just set up postgre or smth like that
-            return 
+            # TODO: think about if this is how we want to do it, because how would the frontend know about the hash value? or rather how do we expect the front end
+            # to use this in the first place
+            # maybe we pass the id of the demo as the hash value in the first place, so that's how the frontend knows?
+            
+            if round_num and not hash_value:
+                raise ValueError("Round number can not be specified if hash value is not specified.")
+            
+            # Checking if the processed demo directory has any files/subdirectories
+            entries = sorted(os.listdir(DemoFileStore.demo_file_location))
+            if entries:
+                raise FileNotFoundError("No processed demo files exist yet.")
+            
+            # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically
+            filepath = f"{DemoFileStore.demo_file_location}/{hash_value}" if hash_value else f"{DemoFileStore.demo_file_location}/{entries[0]}"
+            
+            if round_num:
+                # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='
+                num_rounds = sum(
+                    (os.path.isdir(os.path.join(filepath, sub_file)) and sub_file.startswith("round_num="))
+                    for sub_file in os.listdir(filepath)
+                )
+                if round_num > num_rounds:
+                    raise ValueError(f"Data for round number {round_num} was requested, but only {num_rounds} rounds exist for this demo.")
+                
+                # Setting the filepath to only the round partition that we want to read
+                filepath += f"/round_num={round_num}"
+            
+            return pd.read_parquet(filepath, engine="pyarrow")

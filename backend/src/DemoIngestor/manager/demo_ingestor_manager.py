@@ -81,37 +81,15 @@ class DemoIngestorManager:
             Tick for match start is retrieved, which we use to filter for all events that happened after match start
             We query all ticks from the set of ticks after match start, which gives us all the events that happened per tick
 
-            EVERYTHING ABOVE HAS BEEN IMPLEMENTED
-            BELOW IS PLANNED, CHANGE IT IF THE IMPLEMENTATION CHANGES
-            BATCHING BY TICKS WILL BE HANDLED BY FRONTEND, NOT BACKEND, AS WE WANT TO PROVIDE AS PRECISE INFO AS POSSIBLE
-            TO THE MODEL
-
             Certain fields are converted and normalized to have a clean and easily readable form
             The ticks are partitioned by round, as each round's data is independent of each other
-            All fields that we care about are recorded and each of those fields per tick are stored in a Parquet file
-                The Parquet file is partitioned by round, giving structure like:
-                demo_data/    <--- Path it will be stored at
-                └── round_num=1/      <---- Subdirectory
-                    └── part-0.parquet      <----- Parquet partition
-                └── round_num=2/
-                    └── part-0.parquet
-                    ...
-                └── round_num=24/
-                    └── part-0.parquet
-                We choose Parquet since there is a large amount of data and the file only needs to be constructed once, but read multiple times
-                Can easily convert Parquet files to JSON for human readability(if required)
-                Compression will be done with TODO: figure out what compression(ex: snappy, ZSTD, BROTLI)
-
-        TODO: figure out how we want to store the results. do we want to store it locally for now? or upload to a blob store
-        also how we want the model to be able to understand that its time to train it? do we want to keep a persistent queue
-        so that the model can schedule workers? or just keep an api that does the same thing open
-
-        DO WE WANT TO PARALLELIZE BY ROUND? SINCE THIS IS JUST EXTRACTING THE DATA, WE CAN PROLLY
-        JUST PARALLELIZE BY ROUND AND THEN COMBINE IT ALL AT THE END
-        we'll do it sequentially first and then can parallelize later on if sequentially takes too long
+            The partitioned ticks are then stored in separate Parquet files under the same game's directory, which is named after the game's hash value
         """
         # Parser for the demo file that we are ingesting
         parser = DemoParser(filepath)
+
+        # Getting the hash of the file, which is where we'll store it under later
+        hash_value = DemoFileStore.get_file_hash(filepath)
 
         # TODO: This is just temporary for printing out the entire DFs
         # Specifies to not truncate by column width
@@ -154,15 +132,19 @@ class DemoIngestorManager:
         # Separate the ticks by round
         # Each round is defined by a (start_tick, end_tick) tuple, where the end tick is equal to the start tick of next round
         # Start is defined as when the players spawn in, not when the players are able to move
+        # TODO: need to figure out a sanity check for "dummy rounds" like knife round, warmup(non-valve servers mark these as a round), etc
+        # ex: Faceit's first three rounds aren't actually rounds, first round is warmup, second is knife, third is warmup while deciding side
         round_start_and_end_ticks = self._get_ticks_for_event(
             parser,
-            [DemoParserEvents.ROUND_PRESTART.value,
-                DemoParserEvents.ROUND_END.value]
+            [
+                DemoParserEvents.ROUND_START.value,
+                DemoParserEvents.ROUND_END.value,
+            ]
         )
-        round_prestart_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_PRESTART.value]
+        round_start_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_START.value]
         round_end_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_END.value]
-        rounds_by_ticks = list(zip(round_prestart_ticks, round_end_ticks))
+        rounds_by_ticks = list(zip(round_start_ticks, round_end_ticks))
         print(f"Rounds by tick: {rounds_by_ticks}")
 
         # TODO: Commented out for now, uncomment once ready to parse the Parquet files
-        # DemoFileStore.store_demo_file(all_ticks_df, rounds_by_ticks)
+        # DemoFileStore.store_demo_file(hash_value, all_ticks_df, rounds_by_ticks)
