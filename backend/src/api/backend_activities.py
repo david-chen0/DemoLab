@@ -1,25 +1,45 @@
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+import os
 from DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 
-class BackendActivities:
-    # WE'LL STORE ALL THE APIS HERE
-    # DIVIDE IT BY SECTION, BUT EVERYTHING WILL BE HERE
-    # WE'LL USE FASTAPI
-    
-    demo_ingestor_manager: DemoIngestorManager
-    
-    def __init__(self):
-        self.demo_ingestor_manager = DemoIngestorManager()
+# Constants
+DEMO_INGESTOR_ENDPOINT_PREFIX = "demo_ingestor"
+UPLOADED_DEMOS_DIR = "uploads"
 
+# Managers
+demo_ingestor_manager = DemoIngestorManager()
+
+# App
+app = FastAPI()
+# Wraps app with CORS handling so that 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React dev server TODO: REPLACE THIS ONCE WE VERIFY WHAT THE SERVER IS
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global logic
+os.makedirs(UPLOADED_DEMOS_DIR, exist_ok=True) # Makes the uploaded demos dir if it doesn't already exist
+
+"""
+====================================================================================
+DemoIngestor activities
+====================================================================================
+"""
+
+@app.get(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}")
+# TODO: PROLLY SHJOULDN'T TAKE FILEPATH, BUT INSTEAD TAKE FILE?
+# CHECK WHAT THE LIKELY FRONTEND BEHAVIOR FOR THIS WOULD BE
+def ingest_demo(file: UploadFile = File(...)):
     """
-    ====================================================================================
-    DemoIngestor activities
-    ====================================================================================
+    Ingests the demo using the input file.
+    
+    
     """
     
-    # TODO: make this into an actual API
-    def ingest_demo(self, filepath):
-        """
-        API to ingest a demo
-        """
-        self.demo_ingestor_manager.ingest_demo(filepath)
+    filepath = "todo: change this"
     
+    demo_ingestor_manager.ingest_demo(filepath)

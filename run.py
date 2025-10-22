@@ -2,6 +2,7 @@ from demoparser2 import DemoParser
 import os
 from backend.src.config.demo_parser_events import DemoParserEvents
 from backend.src.DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
+from backend.src.api.backend_activities import *
 
 
 def demo_ingestor_manager_test(filepath: str):
@@ -60,9 +61,6 @@ def main():
     print(f"Parsing demo file: {demo_path}")
     print("=" * 50)
 
-    # Testing the manager
-    demo_ingestor_manager_test(demo_path)
-
     # # Initialize the parser
     # parser = DemoParser(demo_path)
 
@@ -71,6 +69,9 @@ def main():
     # parse_event_test(parser, DemoParserEvents.ROUND_END.value)
     # list_updated_fields_test(parser)
     # parse_header_test(parser)
+    
+    # Testing the APIs
+    ingest_demo(demo_path)
 
 
 if __name__ == "__main__":
