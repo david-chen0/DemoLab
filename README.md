@@ -8,7 +8,7 @@
 ### backend stuff
 launch venv in main dir using `.\venv\Scripts\Activate`
 
-backend server started using: `uvicorn backend/src/api/backend_activities:app --reload`, `--reload` specifies that the app should reload whenever a change is made
+backend server started using: `uvicorn backend.src.api.backend_activities:app --reload`, `--reload` specifies that the app should reload whenever a change is made
 
 ### frontend stuff:
 everything is installed in the `frontend` dir

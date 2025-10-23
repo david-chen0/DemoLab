@@ -27,6 +27,10 @@ pydantic-settings
 # Backend APIs
 fastapi
 uvicorn
+python-multipart # TODO: CHECK IF THIS IS ACTUALLY NEEDED
 
 # Hashing
 blake3
+
+# Async
+asyncio

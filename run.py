@@ -1,5 +1,7 @@
-from demoparser2 import DemoParser
+import asyncio
 import os
+from demoparser2 import DemoParser
+from fastapi import UploadFile
 from backend.src.config.demo_parser_events import DemoParserEvents
 from backend.src.DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 from backend.src.api.backend_activities import *
@@ -47,7 +49,7 @@ def list_updated_fields_test(parser: DemoParser):
     print(f"Found updated fields for demo: {result}")
 
 
-def main():
+async def main():
     # Path to the demo file
     # demo_path = "example_demos/spirit-vs-faze-m3-dust2.dem"
     demo_path = "example_demos/spirit-vs-mouz-m1-mirage.dem"
@@ -70,9 +72,14 @@ def main():
     # list_updated_fields_test(parser)
     # parse_header_test(parser)
     
-    # Testing the APIs
-    ingest_demo(demo_path)
+    # testing the APIs
+    with open(demo_path, "rb") as f:
+        # wrapping it in a FastAPI UploadFile
+        upload = UploadFile(filename=demo_path, file=f)
+        
+        # testing demo ingestion
+        ingest_demo(upload)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
+from ..DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 
 # Constants
 DEMO_INGESTOR_ENDPOINT_PREFIX = "demo_ingestor"
@@ -31,15 +31,15 @@ DemoIngestor activities
 """
 
 @app.get(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}")
-# TODO: PROLLY SHJOULDN'T TAKE FILEPATH, BUT INSTEAD TAKE FILE?
-# CHECK WHAT THE LIKELY FRONTEND BEHAVIOR FOR THIS WOULD BE
 def ingest_demo(file: UploadFile = File(...)):
     """
     Ingests the demo using the input file.
     
-    
+    The file will first be stored locally before calling this method. This method then passes that filepath into the manager for processing.
     """
     
-    filepath = "todo: change this"
+    filepath = file.filename
+    if filepath is None:
+        raise ValueError("File must have a filename specifying its location")
     
     demo_ingestor_manager.ingest_demo(filepath)

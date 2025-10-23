@@ -9,7 +9,7 @@ class BackoffWrapper:
     """
 
     DEFAULT_TIMEOUT = 15  # Timeout in seconds
-    DEFAULT_ATTEMPTS = 3  # Number of attempts
+    DEFAULT_ATTEMPTS = 5  # Number of attempts
 
     @staticmethod
     @backoff.on_exception(backoff.expo, Exception, max_time=DEFAULT_TIMEOUT, max_tries=DEFAULT_ATTEMPTS)
