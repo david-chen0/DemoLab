@@ -1,34 +1,106 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useState, useRef } from 'react'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      setMessage('')
+      setError('')
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setError('Please select a file first')
+      return
+    }
+
+    setUploading(true)
+    setMessage('')
+    setError('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+
+      const response = await fetch('http://localhost:8000/demo_ingestor', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setMessage(`Success: ${result.message}`)
+        setSelectedFile(null)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+      }
+    } catch (err) {
+      setError(`Failed to upload file: ${err instanceof Error ? err.message : 'Unknown error'}. Make sure the backend server is running.`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click()
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+    <div className="app">
+      <h1>Demo File Ingestor</h1>
+      
+      <div className="upload-section">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
+        
+        <button
+          onClick={triggerFileSelect}
+          className="select-file-btn"
+          disabled={uploading}
+        >
+          {selectedFile ? `Selected: ${selectedFile.name}` : 'Select File'}
         </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+
+        {selectedFile && (
+          <button
+            onClick={handleUpload}
+            className="upload-btn"
+            disabled={uploading}
+          >
+            {uploading ? 'Uploading...' : 'Upload & Ingest Demo'}
+          </button>
+        )}
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+
+      {message && (
+        <div className="message success">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="message error">
+          {error}
+        </div>
+      )}
+    </div>
   )
 }
 

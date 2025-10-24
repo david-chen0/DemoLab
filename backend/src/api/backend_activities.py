@@ -23,23 +23,34 @@ app.add_middleware(
 
 # Global logic
 os.makedirs(UPLOADED_DEMOS_DIR, exist_ok=True) # Makes the uploaded demos dir if it doesn't already exist
-
 """
 ====================================================================================
 DemoIngestor activities
 ====================================================================================
 """
 
-@app.get(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}")
-def ingest_demo(file: UploadFile = File(...)):
+@app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}")
+async def ingest_demo(file: UploadFile = File(...)):
     """
     Ingests the demo using the input file.
     
     The file will first be stored locally before calling this method. This method then passes that filepath into the manager for processing.
     """
     
-    filepath = file.filename
-    if filepath is None:
-        raise ValueError("File must have a filename specifying its location")
+    # Check if filename exists
+    if file.filename is None:
+        return {"error": "File must have a filename"}
     
-    demo_ingestor_manager.ingest_demo(filepath)
+    # Save the uploaded file to the uploads directory
+    file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
+    
+    with open(file_location, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+    
+    # Process the file
+    try:
+        demo_ingestor_manager.ingest_demo(file_location)
+        return {"message": "Demo ingested successfully", "filename": file.filename}
+    except Exception as e:
+        return {"error": f"Failed to ingest demo: {str(e)}"}
