@@ -12,7 +12,7 @@ class DemoIngestorManager:
     """
     This class handles all the business logic for demo ingestion.
     """
-    
+
     # Using centralized configuration for demo parser properties
     # See config/demo_parser_props.py for all available properties and combinations
     wanted_props = DemoParserProps.to_strings([
@@ -71,10 +71,12 @@ class DemoIngestorManager:
         """
         # Assigns the value of the query to begin_new_match_events, which then checks if the list corresponding
         # to the key both exists in the dict and is non-empty
-        if (begin_new_match_events := self._get_ticks_for_event(
-                    parser,
-                    [DemoParserEvents.BEGIN_NEW_MATCH.value]).get(DemoParserEvents.BEGIN_NEW_MATCH.value)
-                ):
+        if (
+            begin_new_match_events := self._get_ticks_for_event(
+                parser,
+                [DemoParserEvents.BEGIN_NEW_MATCH.value]
+            ).get(DemoParserEvents.BEGIN_NEW_MATCH.value)
+        ):
             return begin_new_match_events[0]
         return 0
 
@@ -154,6 +156,7 @@ class DemoIngestorManager:
         print(f"Rounds by tick: {rounds_by_ticks}")
 
         # Storing the Parquet files and deleting the input demo file
-        DemoFileStore.store_demo_file(hash_value, all_ticks_df, rounds_by_ticks)
+        DemoFileStore.store_demo_file(
+            hash_value, all_ticks_df, rounds_by_ticks)
         if os.path.exists(filepath) and os.path.isfile(filepath):
             os.remove(filepath)

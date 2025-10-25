@@ -99,13 +99,11 @@ class DemoFileStore:
                 round_prestart_tick, side="left")
             end_idx = all_ticks_df[DemoParserProps.TICK.value].searchsorted(
                 round_end_tick, side="right")
-            round_df = all_ticks_df.iloc[start_idx:end_idx]
-
-            # Adding a synthetic round number column to give the Parquet file for partitioning
-            # TODO: Is there a better way to do this? this makes it so that our slice is a copy rather than a view, which could eat memory and time
+            
+            # Create a copy to avoid SettingWithCopyWarning and add the synthetic round number column
+            round_df = all_ticks_df.iloc[start_idx:end_idx].copy()
             synthetic_round_num_col_name = "round_num"
             round_df[synthetic_round_num_col_name] = round_num
-            round_num += 1
 
             # Store the partition in a compressed Parquet file
             round_df.to_parquet(
@@ -116,6 +114,7 @@ class DemoFileStore:
                 index=False,
             )
             print(f"Created the Parquet partition for round {round_num}")
+            round_num += 1
 
     @staticmethod
     def get_demo_file(
