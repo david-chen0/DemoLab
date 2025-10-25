@@ -1,4 +1,6 @@
+import os
 import pandas as pd
+from typing import Optional
 from demoparser2 import DemoParser
 from ...config.demo_parser_events import DemoParserEvents
 from ...config.demo_parser_props import DemoParserProps
@@ -7,6 +9,10 @@ from ...util.demo_file_store import DemoFileStore
 
 
 class DemoIngestorManager:
+    """
+    This class handles all the business logic for demo ingestion.
+    """
+    
     # Using centralized configuration for demo parser properties
     # See config/demo_parser_props.py for all available properties and combinations
     wanted_props = DemoParserProps.to_strings([
@@ -72,7 +78,7 @@ class DemoIngestorManager:
             return begin_new_match_events[0]
         return 0
 
-    def ingest_demo(self, filepath: str):
+    def ingest_demo(self, filepath: str, hash_value: Optional[str] = None):
         """
         This method will ingest and process the raw demo file. The output of this method TBD, NEED TO FILL THIS IN ONCE DECIDED
 
@@ -89,7 +95,8 @@ class DemoIngestorManager:
         parser = DemoParser(filepath)
 
         # Getting the hash of the file, which is where we'll store it under later
-        hash_value = DemoFileStore.get_file_hash(filepath)
+        if hash_value is None:
+            hash_value = DemoFileStore.get_file_hash(filepath)
 
         # TODO: This is just temporary for printing out the entire DFs
         # Specifies to not truncate by column width
@@ -147,4 +154,7 @@ class DemoIngestorManager:
         print(f"Rounds by tick: {rounds_by_ticks}")
 
         # TODO: Commented out for now, uncomment once ready to parse the Parquet files
+        # # Storing the Parquet files and deleting the input demo file
         # DemoFileStore.store_demo_file(hash_value, all_ticks_df, rounds_by_ticks)
+        # if os.path.exists(filepath) and os.path.isfile(filepath):
+        #     os.remove(filepath)

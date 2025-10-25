@@ -14,15 +14,44 @@ class DemoFileStore:
     def get_file_hash(
         filepath: str
     ) -> str:
+        """
+        Computes the file's hash using the file content and returns it. This hash is what we used to uniquely identify our demos.
+        Each hash is 64 char long and is not affected by metadata(ex: filename).
+        """
         hasher = blake3.blake3()
-        
+
         # Updating the hash in 4MB chunks
         chunk_size = 4 * (1024 ** 2)
         with open(filepath, "rb") as f:
             while chunk := f.read(chunk_size):
                 hasher.update(chunk)
-                
+
         return hasher.hexdigest()
+
+    @staticmethod
+    def get_num_rounds(
+        hash_value: Optional[str] = None,
+        filepath: Optional[str] = None,
+    ) -> int:
+        """
+        Returns the number of rounds that are present in that demo.
+        Hash value is the ID of the demo.
+        Filepath is the top-level path of the demo's Parquet file directory.
+        One of hash value or filepath must be provided. Prioritizes hash value over filepath.
+        """
+        if not hash_value and not filepath:
+            raise ValueError("One of hash value or filepath must be provided.")
+
+        if hash_value:
+            filepath = f"{DemoFileStore.demo_file_location}/{hash_value}"
+
+        # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='
+        assert filepath is not None  # For compiler, not necessary for runtime
+        return sum(
+            (os.path.isdir(os.path.join(filepath, sub_file))
+             and sub_file.startswith("round_num="))
+            for sub_file in os.listdir(filepath)
+        )
 
     @staticmethod
     def store_demo_file(
@@ -82,46 +111,41 @@ class DemoFileStore:
             )
             print(f"Created the Parquet partition for round {round_num}")
 
-        @staticmethod
-        def get_demo_file(
-            hash_value: Optional[str],
-            round_num: Optional[int],
-        ) -> pd.DataFrame:
-            """
-            Retrieves the demo corresponding to the input.
-            If hash_value is provided, then it will retrieve the demo that has the corresponding hash value.
-            If round_num is provided, then it will only retrieve the Parquet partition for that round. round_num can not be specified if hash_value is not specified.
-            If none of these values are provided, then the entire demo of the first alphanumeric demo we have stored will be returned.
-            
-            args:
-                hash_value: The optional hash value of the demo, which is what we use to identify the demos
-                round_num: The optional round number to retrieve the data for
-            """
-            # TODO: think about if this is how we want to do it, because how would the frontend know about the hash value? or rather how do we expect the front end
-            # to use this in the first place
-            # maybe we pass the id of the demo as the hash value in the first place, so that's how the frontend knows?
-            
-            if round_num and not hash_value:
-                raise ValueError("Round number can not be specified if hash value is not specified.")
-            
-            # Checking if the processed demo directory has any files/subdirectories
-            entries = sorted(os.listdir(DemoFileStore.demo_file_location))
-            if entries:
-                raise FileNotFoundError("No processed demo files exist yet.")
-            
-            # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically
-            filepath = f"{DemoFileStore.demo_file_location}/{hash_value}" if hash_value else f"{DemoFileStore.demo_file_location}/{entries[0]}"
-            
-            if round_num:
-                # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='
-                num_rounds = sum(
-                    (os.path.isdir(os.path.join(filepath, sub_file)) and sub_file.startswith("round_num="))
-                    for sub_file in os.listdir(filepath)
-                )
-                if round_num > num_rounds:
-                    raise ValueError(f"Data for round number {round_num} was requested, but only {num_rounds} rounds exist for this demo.")
-                
-                # Setting the filepath to only the round partition that we want to read
-                filepath += f"/round_num={round_num}"
-            
-            return pd.read_parquet(filepath, engine="pyarrow")
+    @staticmethod
+    def get_demo_file(
+        hash_value: Optional[str] = None,
+        round_num: Optional[int] = None,
+    ) -> pd.DataFrame:
+        """
+        Retrieves the demo corresponding to the input.
+        If hash_value is provided, then it will retrieve the demo that has the corresponding hash value.
+        If round_num is provided, then it will only retrieve the Parquet partition for that round. round_num can not be specified if hash_value is not specified.
+        If none of these values are provided, then the entire demo of the first alphanumeric demo we have stored will be returned.
+
+        args:
+            hash_value: The optional hash value of the demo, which is what we use to identify the demos
+            round_num: The optional round number to retrieve the data for
+        """
+        if round_num and not hash_value:
+            raise ValueError(
+                "Round number can not be specified if hash value is not specified.")
+
+        # Checking if the processed demo directory has any files/subdirectories
+        entries = sorted(os.listdir(DemoFileStore.demo_file_location))
+        if entries:
+            raise FileNotFoundError("No processed demo files exist yet.")
+
+        # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically
+        filepath = f"{DemoFileStore.demo_file_location}/{hash_value}" if hash_value else f"{DemoFileStore.demo_file_location}/{entries[0]}"
+
+        if round_num:
+            # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='
+            num_rounds = DemoFileStore.get_num_rounds(filepath=filepath)
+            if round_num > num_rounds:
+                raise ValueError(
+                    f"Data for round number {round_num} was requested, but only {num_rounds} rounds exist for this demo.")
+
+            # Setting the filepath to only the round partition that we want to read
+            filepath += f"/round_num={round_num}"
+
+        return pd.read_parquet(filepath, engine="pyarrow")

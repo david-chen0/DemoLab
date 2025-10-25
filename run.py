@@ -72,13 +72,14 @@ async def main():
     # list_updated_fields_test(parser)
     # parse_header_test(parser)
     
-    # testing the APIs
-    with open(demo_path, "rb") as f:
-        # wrapping it in a FastAPI UploadFile
-        upload = UploadFile(filename=demo_path, file=f)
+    # # testing the APIs
+    # # THIS WILL END UP DELETING THE FILE NOW THAT THAT LOGIC WAS ADDED IN, CAREFUL
+    # with open(demo_path, "rb") as f:
+    #     # wrapping it in a FastAPI UploadFile
+    #     upload = UploadFile(filename=demo_path, file=f)
         
-        # testing demo ingestion
-        ingest_demo(upload)
+    #     # testing demo ingestion
+    #     await ingest_demo(upload)
 
 
 if __name__ == "__main__":
