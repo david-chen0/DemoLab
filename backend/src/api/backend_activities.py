@@ -48,6 +48,7 @@ async def get_num_rounds(demo_id: str) -> Dict:
     """
     Gets the number of rounds for the demo corresponding to the provided ID
     """
+    print(f"get_num_rounds(demo_id={demo_id})")
     try:
         num_rounds = DemoFileStore.get_num_rounds(demo_id)
         return {MESSAGE_HEADER: f"Found {num_rounds} rounds for demo with ID {demo_id}", "numRounds": num_rounds}
@@ -62,6 +63,7 @@ async def get_demo_data(demo_id: Optional[str], round_num: Optional[int]) -> Str
     If no demo ID is specified, then a random demo is retrieved, if any exist.
     If no round number is specified, then the entire demo's dataset is returned. Note that round_num can only be specified if demo_id is specified.
     """
+    print(f"get_demo_data(demo_id={demo_id}, round_num={round_num})")
     try:
         # Getting the Pandas DF containing the data
         demo_dataset = demo_coach_manager.get_demo_data(demo_id, round_num)
@@ -102,6 +104,7 @@ async def ingest_demo(file: UploadFile = File(...)) -> Dict:
 
     The file will first be stored locally before calling this method. This method then passes that filepath into the manager for processing.
     """
+    print(f"ingest_demo(file={file})")
 
     # Check if filename exists
     if file.filename is None:

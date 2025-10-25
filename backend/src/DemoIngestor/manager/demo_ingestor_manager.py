@@ -153,8 +153,7 @@ class DemoIngestorManager:
         rounds_by_ticks = list(zip(round_start_ticks, round_end_ticks))
         print(f"Rounds by tick: {rounds_by_ticks}")
 
-        # TODO: Commented out for now, uncomment once ready to parse the Parquet files
-        # # Storing the Parquet files and deleting the input demo file
-        # DemoFileStore.store_demo_file(hash_value, all_ticks_df, rounds_by_ticks)
-        # if os.path.exists(filepath) and os.path.isfile(filepath):
-        #     os.remove(filepath)
+        # Storing the Parquet files and deleting the input demo file
+        DemoFileStore.store_demo_file(hash_value, all_ticks_df, rounds_by_ticks)
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            os.remove(filepath)

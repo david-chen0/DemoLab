@@ -81,8 +81,14 @@ class DemoFileStore:
 
         TODO: THIS IS CURRENTLY STORED LOCALLY, MOVE IT OVER TO STORE IN BLOB STORE(OR WHATEVER WE DECIDE)
         """
+        # Checking if the file has already been stored locally. If so, then we skip
+        if hash_value in os.listdir(DemoFileStore.demo_file_location):
+            print(f"Demo corresponding to ID {hash_value} already exists, skipping storing.")
+            return
+        
         # We need to manually count the rounds rather than relying on the round number in the DF since
         # the game data could display the round wrong(ex: Faceit counting knife round as round 1)
+        # TODO: SOME GAME MODES ALSO HAVE EXTRA ROUNDS IN THE BEGINNING(EX: FACEIT HAS 3 EXTRA ROUNDS) THAT WE NEED TO OMIT
         round_num = 1
         for round_prestart_tick, round_end_tick in rounds_by_ticks:
             # Normalize the fields
@@ -132,7 +138,7 @@ class DemoFileStore:
 
         # Checking if the processed demo directory has any files/subdirectories
         entries = sorted(os.listdir(DemoFileStore.demo_file_location))
-        if entries:
+        if not entries:
             raise FileNotFoundError("No processed demo files exist yet.")
 
         # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically

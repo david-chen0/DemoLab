@@ -2,6 +2,11 @@
 *.dem
 *__pycache__*
 
+# Uploaded files related to demos(delete these once we move to a cloud blob storage)
+demo_data/*
+example_demos/*
+uploads/*
+
 # Frontend files
 # Logs
 frontend/logs

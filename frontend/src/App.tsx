@@ -11,6 +11,12 @@ function App() {
   const [message, setMessage] = useState<string>('');
   // Error that was thrown during the upload
   const [error, setError] = useState<string>('');
+  // Stores demo information after successful ingestion
+  const [demoInfo, setDemoInfo] = useState<{
+    fileId: string;
+    numRounds: number;
+    round1TableSize: number;
+  } | null>(null);
   // Ref that is being used to track the file input
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +52,34 @@ function App() {
   }
 
   /**
+   * Fetches the number of rounds for a given demo ID
+   */
+  const getNumRounds = async (demoId: string): Promise<number> => {
+    const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/get_num_rounds?demo_id=${encodeURIComponent(demoId)}`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get number of rounds: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.numRounds;
+  };
+
+  /**
+   * Gets the size of the table for a specific round
+   */
+  const getRoundTableSize = async (demoId: string, roundNumber: number): Promise<number> => {
+    const table = await getDemoData(demoId, roundNumber);
+    return table.numRows;
+  };
+
+  /**
    * This method takes in a user input file, which is stored in selectedFile, and ingests it by calling
    * the DemoIngestor endpoint.
    * @returns TODO: UPDATE THIS ONCE WE FINISH THE RETURN
@@ -59,6 +93,7 @@ function App() {
     setUploading(true);
     setMessage('');
     setError('');
+    setDemoInfo(null);
 
     try {
       const formData = new FormData();
@@ -75,6 +110,22 @@ function App() {
         setError(result.error);
       } else {
         setMessage(`Success: ${result.message}`);
+        
+        // Fetch demo information after successful ingestion
+        try {
+          const fileId = result.fileId;
+          const numRounds = await getNumRounds(fileId);
+          const round1TableSize = await getRoundTableSize(fileId, 1);
+          
+          setDemoInfo({
+            fileId,
+            numRounds,
+            round1TableSize
+          });
+        } catch (infoError) {
+          setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
+        }
+        
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -98,7 +149,7 @@ function App() {
       
       // Round number can only be provided if demoId is provided
       if (roundNumber != null) {
-        endpoint += `/round_num=${roundNumber}`;
+        endpoint += `&round_num=${roundNumber}`;
       }
     }
 
@@ -163,6 +214,21 @@ function App() {
       {error && (
         <div className="message error">
           {error}
+        </div>
+      )}
+
+      {demoInfo && (
+        <div className="demo-info">
+          <h2>Demo Information</h2>
+          <div className="info-item">
+            <strong>File ID:</strong> {demoInfo.fileId}
+          </div>
+          <div className="info-item">
+            <strong>Number of Rounds:</strong> {demoInfo.numRounds}
+          </div>
+          <div className="info-item">
+            <strong>Round 1 Table Size:</strong> {demoInfo.round1TableSize} rows
+          </div>
         </div>
       )}
     </div>
