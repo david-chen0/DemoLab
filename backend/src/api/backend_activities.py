@@ -36,6 +36,8 @@ app.add_middleware(
 # Global logic
 # Makes the uploaded demos dir if it doesn't already exist
 os.makedirs(UPLOADED_DEMOS_DIR, exist_ok=True)
+os.makedirs(DemoFileStore.DEMO_DIRECTORY, exist_ok=True)
+os.makedirs(DemoFileStore.METADATA_DIRECTORY, exist_ok=True)
 
 """
 ====================================================================================
@@ -43,21 +45,21 @@ DemoCoach activities
 ====================================================================================
 """
 
-@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_num_rounds")
-async def get_num_rounds(demo_id: str) -> Dict:
+@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_metadata")
+async def get_metadata(demo_id: str) -> Dict:
     """
-    Gets the number of rounds for the demo corresponding to the provided ID
+    Gets the metadata for the demo corresponding to the provided ID
     """
-    print(f"get_num_rounds(demo_id={demo_id})")
+    print(f"get_metadata(demo_id={demo_id})")
     try:
-        num_rounds = DemoFileStore.get_num_rounds(demo_id)
-        return {MESSAGE_HEADER: f"Found {num_rounds} rounds for demo with ID {demo_id}", "numRounds": num_rounds}
+        metadata = demo_coach_manager.get_metadata(demo_id)
+        return {MESSAGE_HEADER: f"Found metadata for demo with ID {demo_id}", "metadata": metadata}
     except Exception as e:
-        return {ERROR_HEADER: f"Failed to find the number of rounds for demo with ID {demo_id}: {str(e)}"}
+        return {ERROR_HEADER: f"Failed to find metadata for demo with ID {demo_id}: {str(e)}"}
 
 
 @app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_demo_data")
-async def get_demo_data(demo_id: Optional[str], round_num: Optional[int]) -> StreamingResponse:
+async def get_demo_data(demo_id: Optional[str] = None, round_num: Optional[int] = None) -> StreamingResponse:
     """
     Gets the data for the specified demo ID, which should be the hash of the demo, and round number.
     If no demo ID is specified, then a random demo is retrieved, if any exist.
@@ -122,6 +124,6 @@ async def ingest_demo(file: UploadFile = File(...)) -> Dict:
         # Hash value is used to uniquely identify the file
         file_hash_value = DemoFileStore.get_file_hash(file_location)
         demo_ingestor_manager.ingest_demo(file_location, file_hash_value)
-        return {MESSAGE_HEADER: "Demo ingested successfully", "fileName": file.filename, "fileId": file_hash_value}
+        return {MESSAGE_HEADER: "Demo ingested successfully", "fileName": file.filename, "demoId": file_hash_value}
     except Exception as e:
         return {ERROR_HEADER: f"Failed to ingest demo: {str(e)}"}

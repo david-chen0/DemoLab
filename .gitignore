@@ -5,6 +5,7 @@
 # Uploaded files related to demos(delete these once we move to a cloud blob storage)
 demo_data/*
 example_demos/*
+metadata/*
 uploads/*
 
 # Frontend files

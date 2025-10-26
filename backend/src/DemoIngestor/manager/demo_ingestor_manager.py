@@ -1,3 +1,4 @@
+import datetime
 import os
 import pandas as pd
 from typing import Optional
@@ -79,6 +80,54 @@ class DemoIngestorManager:
         ):
             return begin_new_match_events[0]
         return 0
+    
+    def _get_match_metadata(self, hash_val: str, filepath: str, parser: DemoParser, num_rounds: int) -> dict:
+        """
+        Returns the match metadata stored as a dict so that it can later be stored in JSON format.
+        
+        The following metadata is returned:
+        demo_id(str)
+        player_info(dict)
+            player_name(str)
+            player_id(int)
+            player_team_number(int, 1-indexed)
+        map(str, ex: de_mirage)
+        num_rounds(int)
+        match_timestamp(str)
+        server_type(str, ex: FACEIT)
+        """
+        metadata = {}
+        metadata['demo_id'] = hash_val
+        
+        # Parsing the header
+        header = parser.parse_header()
+        metadata['map'] = header['map_name']
+        metadata['server_type'] = header['server_name'] # TODO: VERIFY EXPECTED OUTCOME FOR COMP, PREMIER, AND FACEIT
+        
+        # Parsing player info
+        metadata['players'] = []
+        player_info = parser.parse_player_info()
+        team_number_map = {} # Some demos have weird team numbers(ex: 4-indexed), so we'll map it over to be 1-indexed
+        for index, row in player_info.iterrows():
+            team_num = row['team_number']
+            if team_num in team_number_map:
+                team_number = team_number_map[team_num]
+            else:
+                team_number = len(team_number_map)
+                team_number_map[team_num] = team_number
+            
+            metadata['players'].append({
+                'id': row['steamid'],
+                'name': row['name'],
+                'team': team_number,
+            })
+            
+        # Extra metadata
+        metadata['num_rounds'] = num_rounds
+        # Gets the time that the file was created, not stored
+        metadata['match_timestamp'] = datetime.datetime.fromtimestamp(os.path.getctime(filepath)).isoformat()
+        
+        return metadata
 
     def ingest_demo(self, filepath: str, hash_value: Optional[str] = None):
         """
@@ -154,6 +203,10 @@ class DemoIngestorManager:
         round_end_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_END.value]
         rounds_by_ticks = list(zip(round_start_ticks, round_end_ticks))
         print(f"Rounds by tick: {rounds_by_ticks}")
+        
+        # Storing the metadata files
+        metadata = self._get_match_metadata(hash_value, filepath, parser, len(rounds_by_ticks))
+        DemoFileStore.store_metadata_file(hash_value, metadata)
 
         # Storing the Parquet files and deleting the input demo file
         DemoFileStore.store_demo_file(

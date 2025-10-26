@@ -1,5 +1,6 @@
-import { Table, tableFromIPC } from 'apache-arrow';
 import { useState, useRef } from 'react';
+import type { GameMetadata } from './types';
+import { getDemoMetadata, uploadDemoFile, getDemoData } from './services/api';
 import './App.css';
 
 function App() {
@@ -11,19 +12,13 @@ function App() {
   const [message, setMessage] = useState<string>('');
   // Error that was thrown during the upload
   const [error, setError] = useState<string>('');
-  // Stores demo information after successful ingestion
-  const [demoInfo, setDemoInfo] = useState<{
-    fileId: string;
-    numRounds: number;
-    round1TableSize: number;
+  // Stores demo metadata after successful ingestion
+  const [demoMetadata, setDemoMetadata] = useState<{
+    metadata: GameMetadata;
   } | null>(null);
   // Ref that is being used to track the file input
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // API endpoint prefixes
-  const ENDPOINT_PREFIX = "http://localhost:8000";
-  const DEMO_COACH_ENDPOINT_PREFIX = "demo_coach";
-  const DEMO_INGESTOR_ENDPOINT_PREFIX = "demo_ingestor";
 
   /**
    * Handles the file selection, where users are prompted to select a file for use.
@@ -52,127 +47,61 @@ function App() {
   }
 
   /**
-   * Fetches the number of rounds for a given demo ID
+   * Fetches demo metadata and updates component state
    */
-  const getNumRounds = async (demoId: string): Promise<number> => {
-    const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/get_num_rounds?demo_id=${encodeURIComponent(demoId)}`, {
-      method: 'GET',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get number of rounds: ${response.status}`);
+  const handleGetDemoMetadata = async (demoId: string) => {
+    try {
+      const metadata = await getDemoMetadata(demoId);
+      setMessage('Demo metadata fetched successfully');
+      setDemoMetadata({ metadata });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to fetch demo metadata');
     }
-
-    const result = await response.json();
-    if (result.error) {
-      throw new Error(result.error);
-    }
-
-    return result.numRounds;
-  };
-
-  /**
-   * Gets the size of the table for a specific round
-   */
-  const getRoundTableSize = async (demoId: string, roundNumber: number): Promise<number> => {
-    const table = await getDemoData(demoId, roundNumber);
-    return table.numRows;
   };
 
   /**
    * This method takes in a user input file, which is stored in selectedFile, and ingests it by calling
    * the DemoIngestor endpoint.
-   * @returns TODO: UPDATE THIS ONCE WE FINISH THE RETURN
    */
   const handleUpload = async () => {
     if (!selectedFile) {
       setError('Please select a file first');
-      return
+      return;
     }
 
     setUploading(true);
     setMessage('');
     setError('');
-    setDemoInfo(null);
+    setDemoMetadata(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setMessage(`Success: ${result.message}`);
-        
-        // Fetch demo information after successful ingestion
-        try {
-          const fileId = result.fileId;
-          const numRounds = await getNumRounds(fileId);
-          const round1TableSize = await getRoundTableSize(fileId, 1);
-          
-          setDemoInfo({
-            fileId,
-            numRounds,
-            round1TableSize
-          });
-        } catch (infoError) {
-          setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
-        }
-        
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
+      const result = await uploadDemoFile(selectedFile);
+      setMessage(`Success: ${result.message}`);
+      
+      // Fetch demo information after successful ingestion
+      try {
+        const demoId = result.demoId;
+        await handleGetDemoMetadata(demoId);
+        await getDemoData(demoId);
+      } catch (infoError) {
+        setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
+      }
+      
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     } catch (err) {
       setError(`Failed to upload file: ${err instanceof Error ? err.message : 'Unknown error'}. Make sure the backend server is running.`);
     } finally {
       setUploading(false);
     }
-  }
+  };
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
   }
 
-  async function getDemoData(demoId?: string, roundNumber?: number): Promise<Table> {
-    let endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/get_demo_data`;
-    if (demoId != null) {
-      endpoint += `?demo_id=${encodeURIComponent(demoId)}`;
-      
-      // Round number can only be provided if demoId is provided
-      if (roundNumber != null) {
-        endpoint += `&round_num=${roundNumber}`;
-      }
-    }
-
-    // Fetch the binary stream containing the demo data from the backend
-    const response = await fetch(endpoint, {
-      method: 'GET',
-    });
-    if (!response.ok) {
-      // Something failed in the backend
-      throw new Error(`Backend error (${response.status}): ${response.text()}`);
-    }
-
-    // Converting the binary stream into an Arrow table
-    const arrayBuffer = await response.arrayBuffer();
-    const table = tableFromIPC(arrayBuffer);
-
-    return table;
-
-    // Iterate over the result later with something like this    
-    // for (let i = 0; i < table.length; i++) {
-    //   const row = table.get(i);
-    // }
-  }
 
   return (
     <div className="app">
@@ -217,17 +146,35 @@ function App() {
         </div>
       )}
 
-      {demoInfo && (
+      {demoMetadata && (
         <div className="demo-info">
           <h2>Demo Information</h2>
           <div className="info-item">
-            <strong>File ID:</strong> {demoInfo.fileId}
+            <strong>File ID:</strong> {demoMetadata.metadata.demoId}
           </div>
           <div className="info-item">
-            <strong>Number of Rounds:</strong> {demoInfo.numRounds}
+            <strong>Number of Rounds:</strong> {demoMetadata.metadata.numRounds}
           </div>
           <div className="info-item">
-            <strong>Round 1 Table Size:</strong> {demoInfo.round1TableSize} rows
+            <strong>Map:</strong> {demoMetadata.metadata.map}
+          </div>
+          <div className="info-item">
+            <strong>Match timestamp:</strong> {demoMetadata.metadata.matchTimestamp}
+          </div>
+          <div className="info-item">
+            <strong>Server Type:</strong> {demoMetadata.metadata.serverType}
+          </div>
+          <div className="info-item">
+            <strong>Players:</strong>
+            <div className="player-list">
+              {demoMetadata.metadata.playerInfo.map((player) => (
+              <div key={player.playerId} className="player-entry">
+                <div><strong>Name:</strong> {player.playerName}</div>
+                <div><strong>ID:</strong> {player.playerId}</div>
+                <div><strong>Team:</strong> {player.playerTeamNumber}</div>
+              </div>
+            ))}
+            </div>
           </div>
         </div>
       )}

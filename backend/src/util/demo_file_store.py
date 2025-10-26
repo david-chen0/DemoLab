@@ -1,4 +1,5 @@
 import blake3
+import json
 import os
 import pandas as pd
 from typing import Optional
@@ -6,9 +7,9 @@ from ..config.demo_parser_props import DemoParserProps
 
 
 class DemoFileStore:
-    # Location we will be storing the data, relative to where we are running the script
-    # TODO: will prolly need to change this once we figure out how we actually want to store
-    demo_file_location = "demo_data/"
+    # Location we will be storing the data
+    DEMO_DIRECTORY = "demo_data"
+    METADATA_DIRECTORY = "metadata"
 
     @staticmethod
     def get_file_hash(
@@ -29,29 +30,33 @@ class DemoFileStore:
         return hasher.hexdigest()
 
     @staticmethod
-    def get_num_rounds(
-        hash_value: Optional[str] = None,
-        filepath: Optional[str] = None,
-    ) -> int:
+    def store_metadata_file(
+        hash_value: str,
+        metadata: dict,
+    ):
         """
-        Returns the number of rounds that are present in that demo.
-        Hash value is the ID of the demo.
-        Filepath is the top-level path of the demo's Parquet file directory.
-        One of hash value or filepath must be provided. Prioritizes hash value over filepath.
+        Stores the metadata file in JSON format for the game corresponding to the input hash value
         """
-        if not hash_value and not filepath:
-            raise ValueError("One of hash value or filepath must be provided.")
+        print(f"Storing metadata for demo with ID {hash_value}")
 
-        if hash_value:
-            filepath = f"{DemoFileStore.demo_file_location}/{hash_value}"
+        # This will write into the file if it doesn't exist, otherwise throw an error if it already does
+        try:
+            with open(f"{DemoFileStore.METADATA_DIRECTORY}/{hash_value}.json", "x") as f:
+                json.dump(metadata, f, indent=4)
+        except FileExistsError:
+            print(f"File for demo with ID {hash_value} already exists, skipping")
 
-        # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='
-        assert filepath is not None  # For compiler, not necessary for runtime
-        return sum(
-            (os.path.isdir(os.path.join(filepath, sub_file))
-             and sub_file.startswith("round_num="))
-            for sub_file in os.listdir(filepath)
-        )
+    @staticmethod
+    def get_metadata(
+        hash_value: str,
+    ) -> dict:
+        """
+        Returns the metadata dict for the demo corresponding to the input hash value
+        """
+        print(f"Fetching metadata for demo with ID {hash_value}")
+
+        with open(f"{DemoFileStore.METADATA_DIRECTORY}/{hash_value}.json", "r") as f:
+            return json.load(f)
 
     @staticmethod
     def store_demo_file(
@@ -63,7 +68,8 @@ class DemoFileStore:
         This method takes in the input demo data and stores it in a compressed Parquet file.
         The ticks are partitioned by round, as each round's data is independent of each other
         The Parquet file is partitioned by round, giving structure like:
-            demo_data/    <--- Path it will be stored at
+        demo_data/    <--- Top-level dir
+        └── <demo_hash>/    <--- Dir for the entire demo
             └── round_num=1/      <---- Subdirectory
                 └── part-0.parquet      <----- Parquet partition
             └── round_num=2/
@@ -82,10 +88,11 @@ class DemoFileStore:
         TODO: THIS IS CURRENTLY STORED LOCALLY, MOVE IT OVER TO STORE IN BLOB STORE(OR WHATEVER WE DECIDE)
         """
         # Checking if the file has already been stored locally. If so, then we skip
-        if hash_value in os.listdir(DemoFileStore.demo_file_location):
-            print(f"Demo corresponding to ID {hash_value} already exists, skipping storing.")
+        if hash_value in os.listdir(DemoFileStore.DEMO_DIRECTORY):
+            print(
+                f"Demo corresponding to ID {hash_value} already exists, skipping storing.")
             return
-        
+
         # We need to manually count the rounds rather than relying on the round number in the DF since
         # the game data could display the round wrong(ex: Faceit counting knife round as round 1)
         # TODO: SOME GAME MODES ALSO HAVE EXTRA ROUNDS IN THE BEGINNING(EX: FACEIT HAS 3 EXTRA ROUNDS) THAT WE NEED TO OMIT
@@ -99,7 +106,7 @@ class DemoFileStore:
                 round_prestart_tick, side="left")
             end_idx = all_ticks_df[DemoParserProps.TICK.value].searchsorted(
                 round_end_tick, side="right")
-            
+
             # Create a copy to avoid SettingWithCopyWarning and add the synthetic round number column
             round_df = all_ticks_df.iloc[start_idx:end_idx].copy()
             synthetic_round_num_col_name = "round_num"
@@ -107,7 +114,7 @@ class DemoFileStore:
 
             # Store the partition in a compressed Parquet file
             round_df.to_parquet(
-                f"{DemoFileStore.demo_file_location}/{hash_value}",
+                f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}",
                 engine="pyarrow",
                 compression="snappy",  # TODO: Figure out if this is actually the one we want to use
                 partition_cols=[synthetic_round_num_col_name],
@@ -136,16 +143,19 @@ class DemoFileStore:
                 "Round number can not be specified if hash value is not specified.")
 
         # Checking if the processed demo directory has any files/subdirectories
-        entries = sorted(os.listdir(DemoFileStore.demo_file_location))
+        entries = sorted(os.listdir(DemoFileStore.DEMO_DIRECTORY))
         if not entries:
             raise FileNotFoundError("No processed demo files exist yet.")
+        if not hash_value: # Assigning hash value to be a random demo's hash
+            hash_value = entries[0]
 
         # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically
-        filepath = f"{DemoFileStore.demo_file_location}/{hash_value}" if hash_value else f"{DemoFileStore.demo_file_location}/{entries[0]}"
+        filepath = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}"
 
         if round_num:
             # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='
-            num_rounds = DemoFileStore.get_num_rounds(filepath=filepath)
+            metadata = DemoFileStore.get_metadata(hash_value)
+            num_rounds = metadata['num_rounds']
             if round_num > num_rounds:
                 raise ValueError(
                     f"Data for round number {round_num} was requested, but only {num_rounds} rounds exist for this demo.")

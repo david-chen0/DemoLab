@@ -47,6 +47,14 @@ def list_updated_fields_test(parser: DemoParser):
     result = parser.list_updated_fields()
 
     print(f"Found updated fields for demo: {result}")
+    
+    
+def metadata_test(parser: DemoParser):
+    header = parser.parse_header()
+    print(f"Header: {header}")
+    
+    player_info = parser.parse_player_info()
+    print(f"Player info: {player_info}")
 
 
 async def main():
@@ -65,7 +73,8 @@ async def main():
 
     # # Initialize the parser
     # parser = DemoParser(demo_path)
-
+    
+    # metadata_test(parser)
     # list_game_events_and_parse_header_test(parser)
     # parse_event_test(parser, DemoParserEvents.BEGIN_NEW_MATCH.value)
     # parse_event_test(parser, DemoParserEvents.ROUND_END.value)
