@@ -52,12 +52,8 @@ export interface PlayerData {
 }
 
 export interface RoundData {
-  game: GameData; // Data of the game that this round is part of
+  game: GameMetadata; // Metadata of the game that this round is part of
   roundNum: number; // The current round's number
   tickData: Table; // Table of all data for the round TODO DO WE WANT TO DO IT THIS WAY, ESP IF WE WANT TO STREAM LATER ON?
-}
-
-export interface GameData {
-  metadata: GameMetadata; // Metadata on the game
   currentTick: number; // Current tick that the game is on
 }

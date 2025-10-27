@@ -142,12 +142,20 @@ class DemoIngestorManager:
             The ticks are partitioned by round, as each round's data is independent of each other
             The partitioned ticks are then stored in separate Parquet files under the same game's directory, which is named after the game's hash value
         """
-        # Parser for the demo file that we are ingesting
-        parser = DemoParser(filepath)
-
         # Getting the hash of the file, which is where we'll store it under later
         if hash_value is None:
             hash_value = DemoFileStore.get_file_hash(filepath)
+            
+        # If the demo's metadata already exists, we skip ingestion and assume it's already done
+        try:
+            DemoFileStore.get_metadata(hash_value)
+            print(f"Found metadata file for demo with ID {hash_value}, skipping ingestion.")
+            return
+        except FileNotFoundError:
+            print(f"Did not find existing metadata file for demo with ID {hash_value}, continuing with ingestion.")
+        
+        # Parser for the demo file that we are ingesting
+        parser = DemoParser(filepath)
 
         # TODO: This is just temporary for printing out the entire DFs
         # Specifies to not truncate by column width

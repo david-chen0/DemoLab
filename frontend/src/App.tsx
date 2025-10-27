@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import type { GameMetadata } from './interfaces/interfaces';
+import { MapBackground } from './lib/mapView';
 import { getDemoMetadata, uploadDemoFile, getDemoData } from './services/api';
 import './styles/App.css';
 
@@ -54,7 +55,7 @@ function App() {
   const handleGetDemoMetadata = async (demoId: string) => {
     try {
       const metadata = await getDemoMetadata(demoId);
-      setMessage('Demo metadata fetched successfully');
+      setMessage('Demo successfully processed');
       setDemoMetadata({ metadata });
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to fetch demo metadata');
@@ -149,36 +150,45 @@ function App() {
       )}
 
       {demoMetadata && (
-        <div className="demo-info">
-          <h2>Demo Information</h2>
-          <div className="info-item">
-            <strong>File ID:</strong> {demoMetadata.metadata.demoId}
+        <>
+          {/* Map Background Section */}
+          <div className="map-section">
+            <h3>Map View</h3>
+            <MapBackground {...demoMetadata.metadata} />
           </div>
-          <div className="info-item">
-            <strong>Number of Rounds:</strong> {demoMetadata.metadata.numRounds}
-          </div>
-          <div className="info-item">
-            <strong>Map:</strong> {demoMetadata.metadata.map}
-          </div>
-          <div className="info-item">
-            <strong>Match timestamp:</strong> {demoMetadata.metadata.matchTimestamp}
-          </div>
-          <div className="info-item">
-            <strong>Server Type:</strong> {demoMetadata.metadata.serverType}
-          </div>
-          <div className="info-item">
-            <strong>Players:</strong>
-            <div className="player-list">
-              {demoMetadata.metadata.playerInfo.map((player) => (
-              <div key={player.playerId} className="player-entry">
-                <div><strong>Name:</strong> {player.playerName}</div>
-                <div><strong>ID:</strong> {player.playerId}</div>
-                <div><strong>Team:</strong> {player.playerTeamNumber}</div>
+          
+          {/* Demo Info Section */}
+          <div className="demo-info">
+            <h2>Demo Information</h2>
+            <div className="info-item">
+              <strong>File ID:</strong> {demoMetadata.metadata.demoId}
+            </div>
+            <div className="info-item">
+              <strong>Number of Rounds:</strong> {demoMetadata.metadata.numRounds}
+            </div>
+            <div className="info-item">
+              <strong>Map:</strong> {demoMetadata.metadata.map}
+            </div>
+            <div className="info-item">
+              <strong>Match timestamp:</strong> {demoMetadata.metadata.matchTimestamp}
+            </div>
+            <div className="info-item">
+              <strong>Server Type:</strong> {demoMetadata.metadata.serverType}
+            </div>
+            <div className="info-item">
+              <strong>Players:</strong>
+              <div className="player-list">
+                {demoMetadata.metadata.playerInfo.map((player) => (
+                <div key={player.playerId} className="player-entry">
+                  <div><strong>Name:</strong> {player.playerName}</div>
+                  <div><strong>ID:</strong> {player.playerId}</div>
+                  <div><strong>Team:</strong> {player.playerTeamNumber}</div>
+                </div>
+              ))}
               </div>
-            ))}
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
