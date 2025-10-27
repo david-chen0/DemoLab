@@ -4,7 +4,7 @@ import type {
   PlayerMetadata,
   BackendGameMetadata,
   BackendPlayerMetadata
-} from '../types';
+} from '../interfaces/interfaces';
 
 // API endpoint prefixes
 export const ENDPOINT_PREFIX = "http://localhost:8000";

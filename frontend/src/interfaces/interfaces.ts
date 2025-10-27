@@ -1,7 +1,9 @@
+import { Table } from 'apache-arrow';
+
 /**
  * Contains the player metadata
  */
-export type PlayerMetadata = {
+export interface PlayerMetadata {
   playerName: string; // Name of the player, ex: d0nk
   playerId: number; // Player's steamId, ex: 76561198386265483
   playerTeamNumber: number; // Team number in this game, 1-indexed, ex: 1
@@ -10,7 +12,7 @@ export type PlayerMetadata = {
 /**
  * Backend player metadata structure (snake_case)
  */
-export type BackendPlayerMetadata = {
+export interface BackendPlayerMetadata {
   name: string;
   id: number;
   team: number;
@@ -19,7 +21,7 @@ export type BackendPlayerMetadata = {
 /**
  * Contains the game metadata
  */
-export type GameMetadata = {
+export interface GameMetadata {
   demoId: string; // Hash value used to ID the demo
   playerInfo: Array<PlayerMetadata>; // List of player metadata
   map: string; // Name of the map, ex: de_mirage
@@ -31,7 +33,7 @@ export type GameMetadata = {
 /**
  * Backend game metadata structure (snake_case)
  */
-export type BackendGameMetadata = {
+export interface BackendGameMetadata {
   demo_id: string;
   players: BackendPlayerMetadata[];
   map: string;
@@ -39,3 +41,23 @@ export type BackendGameMetadata = {
   match_timestamp: string;
   server_type: string;
 };
+
+// todo: figure out the things we need, ex hp, armor, weapons, etc
+export interface PlayerData {
+  metadata: PlayerMetadata; // Metadata on the player
+  x: number; // x coordinate of the player
+  y: number; // y coordinate of the player
+  z: number; // z coordinate of the player
+  team: "T" | "CT" | null // Current side the player is on TODO THIS MIGHT NOT BE NEEDED/USEFUL
+}
+
+export interface RoundData {
+  game: GameData; // Data of the game that this round is part of
+  roundNum: number; // The current round's number
+  tickData: Table; // Table of all data for the round TODO DO WE WANT TO DO IT THIS WAY, ESP IF WE WANT TO STREAM LATER ON?
+}
+
+export interface GameData {
+  metadata: GameMetadata; // Metadata on the game
+  currentTick: number; // Current tick that the game is on
+}

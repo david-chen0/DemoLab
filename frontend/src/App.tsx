@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react';
-import type { GameMetadata } from './types';
+import type { GameMetadata } from './interfaces/interfaces';
 import { getDemoMetadata, uploadDemoFile, getDemoData } from './services/api';
-import './App.css';
+import './styles/App.css';
 
 function App() {
+  // TODO: WOULD PROBABLY MAKE SENSE TO MOVE ALL THESE CONTEXT INTO A SEPARATE FILE/FOLDER AND MANAGE IT FROM THERE
+
   // Stores the file the file that the user is uploading for demo ingestion
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   // Indicates whether we are uploading a file to our backend for ingestion
