@@ -46,9 +46,9 @@ export interface BackendGameMetadata {
 // TODO: Make sure that we are changing the playerdata rather than creating new ones, as creating new ones would be bad for memory and garbage collection
 export interface PlayerData {
   // Player position and movement properties
-  x: number; // x coordinate of the player
-  y: number; // y coordinate of the player
-  z: number; // z coordinate of the player
+  x: number; // x coordinate(left to right) of the player
+  y: number; // y coordinate(forward to backward) of the player
+  z: number; // z coordinate(up to down) of the player
   pitch: number; // Player's pitch(looking down or up)
   yaw: number; // Player's yaw(looking left or right)
   velocityX: number; // Player's velocity in x-direction
@@ -104,4 +104,26 @@ export interface RoundData {
 export interface GameRendererProps {
   gameMetadata: GameMetadata; // Metadata of the game
   roundState: RoundState; // Current state of the round
+}
+
+/**
+ * Map coordinate bounds configuration
+ */
+export interface MapCoordinateBounds {
+  bottomLeft: {
+    x: number; // Bottom-left X coordinate in game units
+    y: number; // Bottom-left Y coordinate in game units
+  };
+  topRight: {
+    x: number; // Top-right X coordinate in game units
+    y: number; // Top-right Y coordinate in game units
+  };
+}
+
+/**
+ * Map configuration for coordinate mapping and rendering
+ */
+export interface MapConfig {
+  mapName: string; // Name of the map (e.g., "de_dust2")
+  coordinateBounds: MapCoordinateBounds; // Game coordinate bounds
 }

@@ -2,13 +2,54 @@ import { useEffect, useRef } from 'react';
 import type {
   GameRendererProps,
 } from '../interfaces/interfaces';
+import { getMapConfig } from '../config/map_config/mapConfigRegistry';
 
 // Constants
 const GAME_DISPLAY_WIDTH: number = 1024; // todo: figure out if this is right or even what we want
 const GAME_DISPLAY_HEIGHT: number = 1024; // todo: figure out if this is right or even what we want
 const MAP_BACKGROUND_PATH_PREFIX = "/map_backgrounds"
 
-// todo: delete mapView once we get this working
+/**
+ * Maps the coordinates retrieved from the game to the canvas coordinates
+ * @param mapName - Name of the map the match is played on(ex: de_dust2)
+ * @param gameX - X coordinate in the game
+ * @param gameY - Y coordinate in the game
+ * @returns Returns the (x, y) tuple of the canvas coordinates
+ */
+function mapGameCoordinatesToCanvasCoordinates(mapName: string, gameX: number, gameY: number): [number, number] {
+  // Get the map configuration for the specified map
+  const mapConfig = getMapConfig(mapName);
+  
+  if (!mapConfig) {
+    console.warn(`No map configuration found for map: ${mapName}. Using default coordinates.`);
+    // Return center of canvas as fallback
+    return [GAME_DISPLAY_WIDTH / 2, GAME_DISPLAY_HEIGHT / 2];
+  }
+  
+  const { coordinateBounds } = mapConfig;
+  const { bottomLeft, topRight } = coordinateBounds;
+  
+  // Calculate the game coordinate ranges
+  const gameWidth = topRight.x - bottomLeft.x;
+  const gameHeight = topRight.y - bottomLeft.y;
+  
+  // Normalize the game coordinates to 0-1 range
+  const normalizedX = (gameX - bottomLeft.x) / gameWidth;
+  const normalizedY = (gameY - bottomLeft.y) / gameHeight;
+  
+  // Convert to canvas coordinates
+  // Note: Canvas Y is inverted (0 is top), so we flip the Y coordinate
+  const canvasX = normalizedX * GAME_DISPLAY_WIDTH;
+  const canvasY = (1 - normalizedY) * GAME_DISPLAY_HEIGHT;
+  
+  // Clamp coordinates to canvas bounds
+  const clampedX = Math.max(0, Math.min(GAME_DISPLAY_WIDTH, canvasX));
+  const clampedY = Math.max(0, Math.min(GAME_DISPLAY_HEIGHT, canvasY));
+  
+  return [clampedX, clampedY];
+}
+
+
 export default function GameRenderer({
   gameMetadata,
   roundState,
@@ -31,7 +72,6 @@ export default function GameRenderer({
     // Getting the image to display
     const mapName = gameMetadata.map;
     console.log(`Found map ${mapName}`)
-    // TODO: Do we want to use .webp file type for images? Supports transparent background, but check if that's what we want
     const mapImagePath = `${MAP_BACKGROUND_PATH_PREFIX}/${mapName}.webp`;
 
     // Loading the map image
@@ -66,10 +106,17 @@ export default function GameRenderer({
 
     // For each player, draw a circle based on their position and team
     for (const player of roundState.playerMap.values()) {
-      const mapX = player.x;
-      const mapY = player.y;
+      // Map game coordinates to canvas coordinates using the map configuration
+      const [canvasX, canvasY] = mapGameCoordinatesToCanvasCoordinates(
+        gameMetadata.map,
+        player.x,
+        player.y
+      );
+      
+      // TODO: Figure out how to display Z if important(ex: on Nuke)
       ctx.beginPath();
-      ctx.arc(mapX, mapY, 5, 0, 2 * Math.PI); // Drawing the circle
+      ctx.arc(canvasX, canvasY, 5, 0, 2 * Math.PI); // Drawing the circle
+      // TODO: If player is dead, change them to grey
       ctx.fillStyle = player.team_name == "TERRORIST" ?  "#edad13" : "#4d79ff"; // Orange for T, Blue for CT
       ctx.fill();
     }

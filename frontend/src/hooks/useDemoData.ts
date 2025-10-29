@@ -72,22 +72,14 @@ export const useDemoData = () => {
       };
 
       // Parsing all the ticks
-      let processedOnce = false; // temporary so that we process twice
       while (currentTickIndex < roundData.tickData.numRows) {
         // Parse the tick
         currentTickIndex = parseTick(roundState, currentTickIndex, roundData);
         setRoundState(roundState);
 
-        // TODO temporary log statements for info, will cause issues later on if not removed since this will trigger too many times
+        // Debug statements for the player's current value
         for (const player of playerMap.values()) {
-          console.log(`Updated player to: ${JSON.stringify(player)}`);
-        }
-
-        // TODO: TEMPORARY BREAK SO THAT WE ONLY PARSE TWO ROWS, REMOVE ONCE READY
-        if (processedOnce) {
-          break;
-        } else {
-          processedOnce = true;
+          console.debug(`Updated player to: ${JSON.stringify(player)}`);
         }
       }
     } catch (error) {
