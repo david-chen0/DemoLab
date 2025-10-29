@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import type { GameMetadata } from './interfaces/interfaces';
-import { MapBackground } from './lib/mapView';
-import { getDemoMetadata, uploadDemoFile, getDemoData } from './services/api';
+import GameRenderer from './lib/gameRenderer';
+import { uploadDemoFile } from './services/api';
+import { useDemoData } from './hooks/useDemoData';
 import './styles/App.css';
 
 function App() {
@@ -15,12 +15,18 @@ function App() {
   const [message, setMessage] = useState<string>('');
   // Error that was thrown during the upload
   const [error, setError] = useState<string>('');
-  // Stores demo metadata after successful ingestion
-  const [demoMetadata, setDemoMetadata] = useState<{
-    metadata: GameMetadata;
-  } | null>(null);
   // Ref that is being used to track the file input
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Custom hook for demo data management
+  const {
+    demoMetadata,
+    roundData,
+    roundState,
+    handleGetDemoMetadata,
+    handleGetDemoData,
+    resetDemoData,
+  } = useDemoData();
 
 
   /**
@@ -49,18 +55,6 @@ function App() {
     }
   }
 
-  /**
-   * Fetches demo metadata and updates component state
-   */
-  const handleGetDemoMetadata = async (demoId: string) => {
-    try {
-      const metadata = await getDemoMetadata(demoId);
-      setMessage('Demo successfully processed');
-      setDemoMetadata({ metadata });
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to fetch demo metadata');
-    }
-  };
 
   /**
    * This method takes in a user input file, which is stored in selectedFile, and ingests it by calling
@@ -75,7 +69,7 @@ function App() {
     setUploading(true);
     setMessage('');
     setError('');
-    setDemoMetadata(null);
+    resetDemoData();
 
     try {
       const result = await uploadDemoFile(selectedFile);
@@ -84,8 +78,17 @@ function App() {
       // Fetch demo information after successful ingestion
       try {
         const demoId = result.demoId;
-        await handleGetDemoMetadata(demoId);
-        await getDemoData(demoId);
+
+        // Fetching the game metadata
+        // We need to return the value here rather than using the React setter, as React is asynchronous and can cause race conditions
+        const gameMetadata = await handleGetDemoMetadata(demoId, setMessage, setError);
+        if (gameMetadata == undefined) {
+          throw Error("Failed to fetch game metadata");
+        }
+
+        // Fetching the demo data
+        // TODO: Need to setup frontend mechanism for user to select the round that we want to display and then pass this round number into handleGetDemoData
+        await handleGetDemoData(gameMetadata, demoId, setError);
       } catch (infoError) {
         setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
       }
@@ -149,12 +152,15 @@ function App() {
         </div>
       )}
 
-      {demoMetadata && (
+      {demoMetadata && roundState && roundData && (
         <>
-          {/* Map Background Section */}
-          <div className="map-section">
-            <h3>Map View</h3>
-            <MapBackground {...demoMetadata.metadata} />
+          {/* Game Renderer Section */}
+          <div className="game-section">
+            <h3>Game View</h3>
+            <GameRenderer
+              gameMetadata={demoMetadata.metadata}
+              roundState={roundState}
+            />
           </div>
           
           {/* Demo Info Section */}

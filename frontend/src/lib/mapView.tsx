@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
 import type {
   GameMetadata,
-  PlayerData,
-  RoundData,
 } from '../interfaces/interfaces';
 
+// Constants
 const MAP_BACKGROUND_PATH_PREFIX = "/map_backgrounds"
 
 export function MapBackground(gameMetadata: GameMetadata) {

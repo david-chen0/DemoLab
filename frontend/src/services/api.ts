@@ -108,9 +108,4 @@ export const getDemoData = async (demoId?: string, roundNumber?: number): Promis
   const table = tableFromIPC(arrayBuffer);
 
   return table;
-
-  // Iterate over the result later with something like this    
-  // for (let i = 0; i < table.length; i++) {
-  //   const row = table.get(i);
-  // }
 };

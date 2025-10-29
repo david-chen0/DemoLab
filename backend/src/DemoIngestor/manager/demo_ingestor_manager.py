@@ -17,40 +17,52 @@ class DemoIngestorManager:
     # Using centralized configuration for demo parser properties
     # See config/demo_parser_props.py for all available properties and combinations
     wanted_props = DemoParserProps.to_strings([
+        # Player position and movement properties
         DemoParserProps.X,
         DemoParserProps.Y,
         DemoParserProps.Z,
         DemoParserProps.PITCH,
+        DemoParserProps.YAW,
         DemoParserProps.VELOCITY_X,
         DemoParserProps.VELOCITY_Y,
         DemoParserProps.VELOCITY_Z,
+        
+        # Player state properties
         DemoParserProps.HP,
+        DemoParserProps.IS_ALIVE,
         DemoParserProps.IS_DEFUSING,
-        # todo Do we need this one if we're going to parse the map?
         DemoParserProps.IS_IN_BOMBSITE,
         DemoParserProps.IS_IN_BUY_ZONE,
         DemoParserProps.IS_SCOPED,
         DemoParserProps.IS_WALKING,
         DemoParserProps.IS_DUCKING,
-        DemoParserProps.PLAYER_NAME,  # todo do we need both this and steamid? or either?
+        
+        # Player identity
+        DemoParserProps.PLAYER_NAME,
         DemoParserProps.PLAYER_STEAMID,
         DemoParserProps.TEAM_NAME,
+        DemoParserProps.TEAM_NUM,
+        
+        # Economy & Equipment Properties
         DemoParserProps.CASH,
-        DemoParserProps.EQUIPMENT_VALUE,
-        DemoParserProps.HAS_DEFUSE_KIT,
+        DemoParserProps.EQUIPMENT_VALUE_THIS_ROUND,
+        DemoParserProps.CASH_SPENT_THIS_ROUND,
         DemoParserProps.ARMOR_VALUE,
         DemoParserProps.HAS_HELMET,
         DemoParserProps.HAS_DEFUSE_KIT,
+        
+        # Weapon & Equipment Properties
         DemoParserProps.ACTIVE_WEAPON_NAME,
         DemoParserProps.ACTIVE_WEAPON_AMMO,
         DemoParserProps.ACTIVE_WEAPON_RESERVE,
         DemoParserProps.FLASH_DURATION,
+        DemoParserProps.FLASH_MAX_ALPHA,
+        
+        # Game State Properties
         DemoParserProps.TICK,
-        DemoParserProps.SCORE,
         DemoParserProps.KILLS,
         DemoParserProps.DEATHS,
         DemoParserProps.ASSISTS,
-        DemoParserProps.GAME_PHASE
     ])
 
     def __init__(self): return
@@ -117,7 +129,7 @@ class DemoIngestorManager:
                 team_number_map[team_num] = team_number
             
             metadata['players'].append({
-                'id': row['steamid'],
+                'id': str(row['steamid']), # Needs to be converted to string to preserve Typescript(frontend later on)'s 64-bit integer precision
                 'name': row['name'],
                 'team': team_number,
             })

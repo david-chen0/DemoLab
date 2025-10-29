@@ -1,10 +1,15 @@
 # DemoLab
 
 # Tasks that need to be done
+* Animate the frontend elements such as player locations
+ * Currently, the player locations are just being shown per-tick by clearing the previous tick and putting the new tick's positions
+ * This current implementation is choppy, needs to be fixed with smooth animations
 * Change the table fetching between frontend and backend(get_demo_data API) to use a streaming approach rather than loading everything at once
  * In the current approach, everything is loaded into memory, which is then thrown into an Apache StreamingResponse and the entire ArrayBuffer is loaded in full by the frontend
  * Instead of this, the frontend should only load a bit, start playing the demo for the user, and load more in the background, basically like a video player
  * Can be done by chunking the Pandas DB, paginating the API, etc
+* Change the background map canvas to be an offscreen canvas for parallelism purposes
+ * Need to create a worker to handle the background map offscreen canvas and it will be managed by communicating with this worker
 
 
 ## personal notes:
