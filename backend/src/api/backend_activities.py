@@ -26,7 +26,7 @@ app = FastAPI()
 # Wraps app with CORS handling so that
 app.add_middleware(
     CORSMiddleware,
-    # React dev server TODO: REPLACE THIS ONCE WE VERIFY WHAT THE SERVER IS
+    # React dev server
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],

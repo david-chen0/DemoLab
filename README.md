@@ -4,10 +4,14 @@
 * Animate the frontend elements such as player locations
  * Currently, the player locations are just being shown per-tick by clearing the previous tick and putting the new tick's positions
  * This current implementation is choppy, needs to be fixed with smooth animations
+* Make documentation for frontend better and re-organize methods if needed
 * Change the table fetching between frontend and backend(get_demo_data API) to use a streaming approach rather than loading everything at once
  * In the current approach, everything is loaded into memory, which is then thrown into an Apache StreamingResponse and the entire ArrayBuffer is loaded in full by the frontend
  * Instead of this, the frontend should only load a bit, start playing the demo for the user, and load more in the background, basically like a video player
  * Can be done by chunking the Pandas DB, paginating the API, etc
+* Tick jumps should be done by getting the info at that tick and setting the state as such rather than advancing it until the ticks are equal
+ * One caveat of this is that we may need to process up to a few seconds before that tick for events(ex: nade thrown) or info
+ * This will also allow us to jump to a previous tick, which is currently not allowed
 * Change the background map canvas to be an offscreen canvas for parallelism purposes
  * Need to create a worker to handle the background map offscreen canvas and it will be managed by communicating with this worker
 

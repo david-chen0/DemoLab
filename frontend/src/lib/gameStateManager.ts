@@ -1,7 +1,7 @@
 import type { RoundData, RoundState, PlayerData } from '../interfaces/interfaces';
 import { FIELD_MAP } from '../config/fieldMappings';
 
-// creates a blank playerdata
+// Creates a blank playerdata
 // TODO: is this the best place to put this?
 export function createBlankPlayer(): PlayerData {
     return {
@@ -70,7 +70,7 @@ export function parseTick(roundState: RoundState, indexToStart: number, roundDat
             for (const tableKey in FIELD_MAP) {
                 const playerDataKey = FIELD_MAP[tableKey];
                 const newValue = row[tableKey];
-                if (newValue != undefined) {
+                if (newValue !== undefined) {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (player as any)[playerDataKey] = newValue;
                 }

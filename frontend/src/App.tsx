@@ -23,11 +23,19 @@ function App() {
     demoMetadata,
     roundData,
     roundState,
+    renderVersion,
+    currentTickNumber,
+    maxTickNumber,
+    hasNextTick,
     handleGetDemoMetadata,
-    handleGetDemoData,
+    initializePlayerDataForRound,
+    goToNextTick,
+    jumpToTick,
     resetDemoData,
   } = useDemoData();
 
+  // State for jump-to-tick input
+  const [jumpTickInput, setJumpTickInput] = useState<string>('');
 
   /**
    * Handles the file selection, where users are prompted to select a file for use.
@@ -87,8 +95,8 @@ function App() {
         }
 
         // Fetching the demo data
-        // TODO: Need to setup frontend mechanism for user to select the round that we want to display and then pass this round number into handleGetDemoData
-        await handleGetDemoData(gameMetadata, demoId, setError);
+        // TODO: Need to setup frontend mechanism for user to select the round that we want to display and then pass this round number into initializePlayerDataForRound
+        await initializePlayerDataForRound(gameMetadata, demoId, setError);
       } catch (infoError) {
         setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
       }
@@ -154,12 +162,61 @@ function App() {
 
       {demoMetadata && roundState && roundData && (
         <>
+          {/* Tick Navigation Section */}
+          <div className="tick-navigation">
+            <h3>Tick Navigation</h3>
+            <div className="tick-controls">
+              <div className="tick-display">
+                <strong>Current Tick: {currentTickNumber}</strong>
+                <span className="tick-range">(Range: {roundData.tickData.get(0)?.tick || 0} - {maxTickNumber})</span>
+              </div>
+              
+              <button
+                onClick={goToNextTick}
+                disabled={!hasNextTick}
+                className="nav-btn next-btn"
+                title="Go to next tick"
+              >
+                Next →
+              </button>
+            </div>
+            
+            <div className="jump-controls">
+              <label htmlFor="jumpTick">Jump to tick:</label>
+              <input
+                id="jumpTick"
+                type="number"
+                value={jumpTickInput}
+                onChange={(e) => setJumpTickInput(e.target.value)}
+                placeholder={`${roundData.tickData.get(0)?.tick || 0} - ${maxTickNumber}`}
+                className="jump-input"
+                min={roundData.tickData.get(0)?.tick || 0}
+                max={maxTickNumber}
+              />
+              <button
+                onClick={() => {
+                  const targetTick = parseInt(jumpTickInput);
+                  if (!isNaN(targetTick)) {
+                    jumpToTick(targetTick);
+                    setJumpTickInput('');
+                  }
+                }}
+                disabled={!jumpTickInput || isNaN(parseInt(jumpTickInput))}
+                className="nav-btn jump-btn"
+                title="Jump to specified tick"
+              >
+                Jump
+              </button>
+            </div>
+          </div>
+
           {/* Game Renderer Section */}
           <div className="game-section">
             <h3>Game View</h3>
             <GameRenderer
               gameMetadata={demoMetadata.metadata}
               roundState={roundState}
+              renderVersion={renderVersion}
             />
           </div>
           

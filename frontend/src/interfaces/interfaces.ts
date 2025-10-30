@@ -42,8 +42,6 @@ export interface BackendGameMetadata {
   server_type: string;
 };
 
-// todo: figure out the things we need, ex hp, armor, weapons, etc
-// TODO: Make sure that we are changing the playerdata rather than creating new ones, as creating new ones would be bad for memory and garbage collection
 export interface PlayerData {
   // Player position and movement properties
   x: number; // x coordinate(left to right) of the player
@@ -104,6 +102,7 @@ export interface RoundData {
 export interface GameRendererProps {
   gameMetadata: GameMetadata; // Metadata of the game
   roundState: RoundState; // Current state of the round
+  renderVersion: number; // Version counter to trigger player model re-renders, as we are editing roundState in-place, which won't trigger a re-render
 }
 
 /**

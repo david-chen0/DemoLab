@@ -53,6 +53,7 @@ function mapGameCoordinatesToCanvasCoordinates(mapName: string, gameX: number, g
 export default function GameRenderer({
   gameMetadata,
   roundState,
+  renderVersion,
 }: GameRendererProps) {
   console.log(`Rendering the game state for game ${JSON.stringify(gameMetadata)} at tick ${roundState.tick}`)
 
@@ -94,6 +95,8 @@ export default function GameRenderer({
 
   // Drawing the players, only drawn when their state changes
   useEffect(() => {
+    console.log("Drawing the player indicators on the map")
+
     // Getting the player canvas element and 2D rendering context
     const playerCanvas = playerCanvasRef.current;
     if (!playerCanvas) return;
@@ -120,7 +123,7 @@ export default function GameRenderer({
       ctx.fillStyle = player.team_name == "TERRORIST" ?  "#edad13" : "#4d79ff"; // Orange for T, Blue for CT
       ctx.fill();
     }
-  }, [roundState]); // Update when roundState changes
+  }, [roundState, gameMetadata.map, renderVersion]); // Update when roundState or map changes or renderVersion increments
 
   // Returns the two canvases
   // mapCanvas(zIndex = 0) is the static visual background
