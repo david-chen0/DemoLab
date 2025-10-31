@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import GameRenderer from './lib/gameRenderer';
 import { uploadDemoFile } from './services/api';
-import { useDemoData } from './hooks/useDemoData';
+import { useGameState } from './hooks/useGameState';
 import './styles/App.css';
 
 function App() {
@@ -32,7 +32,7 @@ function App() {
     goToNextTick,
     jumpToTick,
     resetDemoData,
-  } = useDemoData();
+  } = useGameState();
 
   // State for jump-to-tick input
   const [jumpTickInput, setJumpTickInput] = useState<string>('');

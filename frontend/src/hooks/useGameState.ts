@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import type { GameMetadata, RoundData, RoundState, PlayerData } from '../interfaces/interfaces';
-import { createBlankPlayer, parseTick } from '../lib/gameStateManager';
+import { parseTick } from '../lib/gameStateManager';
 import { getDemoMetadata, getDemoData } from '../services/api';
 
-export const useDemoData = () => {
+/**
+ * Custom React hook for managing game state including demo metadata,
+ * round data, player states, and tick navigation for CS2 demo playback.
+ */
+export const useGameState = () => {
   // Stores demo metadata after successful ingestion
   const [demoMetadata, setDemoMetadata] = useState<{
     metadata: GameMetadata;
@@ -21,7 +25,51 @@ export const useDemoData = () => {
   const [renderVersion, setRenderVersion] = useState<number>(0);
 
   /**
+   * Creates a blank player for initialization purposes.
+   * @returns PlayerData with blank/null fields
+   */
+  function createBlankPlayer(): PlayerData {
+    return {
+        x: 0,
+        y: 0,
+        z: 0,
+        pitch: 0,
+        yaw: 0,
+        velocityX: 0,
+        velocityY: 0,
+        velocityZ: 0,
+        hp: 0,
+        is_alive: true,
+        is_defusing: false,
+        is_in_bombsite: null,
+        is_in_buy_zone: null,
+        is_scoped: false,
+        is_walking: false,
+        is_ducking: false,
+        team_name: null,
+        cash: 0,
+        equipment_value_this_round: 0,
+        cash_spent_this_round: 0,
+        armor_value: 0,
+        has_helmet: false,
+        has_defuse_kit: false,
+        active_weapon_name: "",
+        active_weapon_ammo: 0,
+        active_weapon_reserve: 0,
+        flash_duration: 0,
+        flash_max_alpha: 0,
+        kills: 0,
+        deaths: 0,
+        assists: 0,
+    }
+}
+
+  /**
    * Fetches demo metadata and updates component state
+   * @param demoId - ID of the demo we are using
+   * @param setMessage - Method to set the message displayed to the user, provided by the caller
+   * @param setError - Method to set the error, provided by the caller
+   * @returns GameMetadata object representing the metadata for that game. Only necessary if React async hooks are a dependency for something which needs to avoid race condition.
    */
   const handleGetDemoMetadata = async (demoId: string, setMessage: (msg: string) => void, setError: (err: string) => void) => {
     console.log(`Getting metadata for demo ${demoId}`);

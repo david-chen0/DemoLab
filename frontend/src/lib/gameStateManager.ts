@@ -1,49 +1,20 @@
-import type { RoundData, RoundState, PlayerData } from '../interfaces/interfaces';
+import type { RoundData, RoundState } from '../interfaces/interfaces';
 import { FIELD_MAP } from '../config/fieldMappings';
 
-// Creates a blank playerdata
-// TODO: is this the best place to put this?
-export function createBlankPlayer(): PlayerData {
-    return {
-        x: 0,
-        y: 0,
-        z: 0,
-        pitch: 0,
-        yaw: 0,
-        velocityX: 0,
-        velocityY: 0,
-        velocityZ: 0,
-        hp: 0,
-        is_alive: true,
-        is_defusing: false,
-        is_in_bombsite: null,
-        is_in_buy_zone: null,
-        is_scoped: false,
-        is_walking: false,
-        is_ducking: false,
-        team_name: null,
-        cash: 0,
-        equipment_value_this_round: 0,
-        cash_spent_this_round: 0,
-        armor_value: 0,
-        has_helmet: false,
-        has_defuse_kit: false,
-        active_weapon_name: "",
-        active_weapon_ammo: 0,
-        active_weapon_reserve: 0,
-        flash_duration: 0,
-        flash_max_alpha: 0,
-        kills: 0,
-        deaths: 0,
-        assists: 0,
-    }
-}
-
-// TODO: Update the notes on this and related methods
-// returns the index of the next place in the table to process(unless we find another way to do this)
+/**
+ * Parses the data relating to the current tick and updates the PlayerData's stored in the RoundState in-place.
+ * 
+ * Note that it is the caller's job to verify that there are ticks remaining and that the previously processed tick was not the last.
+ * This method may error out if there is no data remaining to process.
+ * 
+ * @param roundState - The RoundState that we'll update, which at input time is tracking the data at previous tick.
+ * @param indexToStart - The row index of the table that the tick we'll process starts at(ex: indexToStart = 10 means we start processing at row index 10)
+ * @param roundData - The data for the entire round
+ * @returns The index that the next tick starts at
+ */
 export function parseTick(roundState: RoundState, indexToStart: number, roundData: RoundData): number {
     const tickData = roundData.tickData; // Data on all the ticks in this round
-    let idx = indexToStart; // NOTE: ON CALLER TO VERIFY THAT THERE ARE TICKS LEFT/LAST TICK WASNT LAST
+    let idx = indexToStart;
     const currentTickNum = tickData.get(idx)!.tick;
     roundState.tick = currentTickNum;
 
