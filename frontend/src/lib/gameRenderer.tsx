@@ -118,8 +118,25 @@ export default function GameRenderer({
       // TODO: Figure out how to display Z if important(ex: on Nuke)
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, 5, 0, 2 * Math.PI); // Drawing the circle
-      // TODO: If player is dead, change them to grey
-      ctx.fillStyle = player.team_name == "TERRORIST" ?  "#edad13" : "#4d79ff"; // Orange for T, Blue for CT
+      
+      // Color of the player's bubble
+      let fillStyle;
+      if (player.team_name == "TERRORIST") {
+        if (player.is_alive) {
+          fillStyle = "#edad13";
+        } else {
+          fillStyle = "#f7f0ba";
+        }
+      } else if (player.team_name == "CT") {
+        if (player.is_alive) {
+          fillStyle = "#4d79ff";
+        } else {
+          fillStyle = "#bad0f7";
+        }
+      } else {
+        fillStyle = "#ffffff";
+      }
+      ctx.fillStyle = fillStyle;
       ctx.fill();
     }
   }, [roundState, gameMetadata.map, renderVersion]); // Update when roundState or map changes or renderVersion increments
