@@ -16,7 +16,11 @@ export function parseTick(roundState: RoundState, indexToStart: number, roundDat
     const tickData = roundData.tickData; // Data on all the ticks in this round
     let idx = indexToStart;
     const currentTickNum = tickData.get(idx)!.tick;
-    roundState.tick = currentTickNum;
+    
+    // Indicates whether we are parsing a continuous tick
+    // If we are not(ex: jumping to a specific tick), then we need some special logic to avoid assumptions
+    // that are made by continuous parses
+    const continuousTickParse = currentTickNum == roundState.tick + 1;
 
     while (idx < tickData.numRows) {
         const row = tickData.get(idx);
@@ -28,14 +32,15 @@ export function parseTick(roundState: RoundState, indexToStart: number, roundDat
 
         // Getting the player's PlayerData object
         const playerId = row.player_steamid.toString(); // Convert to string to match map key type
+        const playerName = row.player_name;
         const player = roundState.playerMap.get(playerId);
         if (!player) {
-            throw Error(`Could not find player corresponding to steam ID ${playerId}`);
+            throw Error(`Could not find player corresponding to steam name ${playerName} and steam ID ${playerId}`);
         }
 
         // We only update if the player was previously alive, as the player being dead previously means that their state
         // can not change during this round
-        if (player.is_alive) {
+        if (!continuousTickParse || player.is_alive) {
             // Updating the player object in place
             // This is REQUIRED over creating a new PlayerData object, as creating new ones would cause a lot of memory usage and garbage collection issues
             for (const tableKey in FIELD_MAP) {
@@ -54,6 +59,9 @@ export function parseTick(roundState: RoundState, indexToStart: number, roundDat
 
         idx += 1;
     }
+
+    // Setting the roundState's tick at the end, as we use the info of previous tick in our logic
+    roundState.tick = currentTickNum;
 
     // Returning the first index corresponding to the next tick
     return idx;

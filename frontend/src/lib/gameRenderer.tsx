@@ -72,7 +72,6 @@ export default function GameRenderer({
     
     // Getting the image to display
     const mapName = gameMetadata.map;
-    console.log(`Found map ${mapName}`)
     const mapImagePath = `${MAP_BACKGROUND_PATH_PREFIX}/${mapName}.webp`;
 
     // Loading the map image

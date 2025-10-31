@@ -6,6 +6,7 @@ import type { MapConfig } from '../../interfaces/interfaces';
  * To determine this, use the runMapCalculator.ts file under utils/. More info/instructions there
  */
 const mapConfigs: Record<string, MapConfig> = {
+  // TODO: Dust2's config is ever so slightly off, need to adjust these coords
   'de_dust2': {
     mapName: "de_dust2",
     coordinateBounds: {

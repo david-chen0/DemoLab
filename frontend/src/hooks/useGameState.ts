@@ -199,24 +199,47 @@ export const useGameState = () => {
       return;
     }
     
-    if (targetTick < roundState.tick) {
-      console.warn('Jumping to previous ticks is not supported yet');
-      return;
-    }
-    
     // Validate that target tick exists using stored first/last tick values
     if (targetTick < firstTick || targetTick > lastTick) {
       console.warn(`Target tick ${targetTick} is out of range. Valid range: ${firstTick} - ${lastTick}`);
       return;
     }
-    
-    // We need to manually set the tick, as React hooks are async, so changing the roundState object
-    // between iterations does not get caught in the next iteration
-    let nextTickIndex = currentTickIndex;
-    while (roundState.tick < targetTick && hasNextTick()) {
-      nextTickIndex = parseTick(roundState, nextTickIndex, roundData);
-      console.log(`Parsed tick: ${roundState.tick}`);
+
+    // Binary search for the index of a row that corresponds to the tick
+    let firstPtr = 0;
+    let lastPtr = roundData.tickData.numRows - 1;
+    let firstTickIndex: number;
+    while (true) {
+      const middlePtr = Math.floor((firstPtr + lastPtr) / 2);
+      const currentTick = roundData.tickData.get(middlePtr)!.tick;
+      if (currentTick == targetTick) {
+        // We found an index that has the same tick value
+        firstTickIndex = middlePtr;
+        break;
+      } else if (currentTick < targetTick) {
+        firstPtr = middlePtr;
+      } else {
+        lastPtr = middlePtr;
+      }
     }
+
+    // firstTickIndex is now in the tick, but is not guaranteed to be the first row
+    // corresponding to that tick
+    firstTickIndex -= 1;
+    while (firstTickIndex > 0) {
+      const currentTick = roundData.tickData.get(firstTickIndex)!.tick;
+      if (currentTick != targetTick) {
+        // Reached the previous tick
+        break;
+      }
+
+      firstTickIndex -= 1;
+    }
+    firstTickIndex += 1; // Before this, we were at the last row of the previous tick, so we need to increment by one
+
+    // Parsing the current tick, which we now have the index for
+    const nextTickIndex = parseTick(roundState, firstTickIndex, roundData);
+    console.log(`Jumped to tick: ${roundState.tick}`);
     setCurrentTickIndex(nextTickIndex);
     // Force re-render by incrementing version, as roundState is being edited in-place so it doesn't trigger a re-render
     setRenderVersion(prev => prev + 1);
