@@ -1,15 +1,22 @@
 # DemoLab
 
 # Tasks that need to be done
-* Make documentation for frontend better and re-organize methods if needed
-* Add more info to and around player icons, such as their names, what weapon/item they are currently holding, an arrow pointing towards the direction they are looking, an X across their icon if they're dead, etc
+* Add more info to and around player icons which include:
+ * Player names
+ * Weapon/item they are currently holding
+ * Arrow indicating direction they are looking
+ * Death indicator(ex: an X across the circle or just replacing their circle with X)
+ * Flashed indicator
+ * Player info indicator on the side(HP bar, KDA, equipment, money, etc)
+* Add game events and states, which include:
+ * Nades being thrown and popping
+ * Killfeed(decide whether we want to persist it or just have it for a few seconds)
+ * Bomb plant and timer
 * Change the table fetching between frontend and backend(get_demo_data API) to use a streaming approach rather than loading everything at once
  * In the current approach, everything is loaded into memory, which is then thrown into an Apache StreamingResponse and the entire ArrayBuffer is loaded in full by the frontend
  * Instead of this, the frontend should only load a bit, start playing the demo for the user, and load more in the background, basically like a video player
  * Can be done by chunking the Pandas DB, paginating the API, etc
-* Tick jumps should be done by getting the info at that tick and setting the state as such rather than advancing it until the ticks are equal
- * One caveat of this is that we may need to process up to a few seconds before that tick for events(ex: nade thrown) or info
- * This will also allow us to jump to a previous tick, which is currently not allowed
+* Organize the CSS and/or use a library(ex: Tailwind)
 * Change the background map canvas to be an offscreen canvas for parallelism purposes
  * Need to create a worker to handle the background map offscreen canvas and it will be managed by communicating with this worker
 

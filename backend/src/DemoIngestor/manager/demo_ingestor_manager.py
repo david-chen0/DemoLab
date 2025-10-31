@@ -141,6 +141,8 @@ class DemoIngestorManager:
         
         return metadata
 
+    # TODO: There seems to be a bug with the rounds right now, where the first round is warmup/pre-round and the last round is actually second-to-last round
+    # look into this
     def ingest_demo(self, filepath: str, hash_value: Optional[str] = None):
         """
         This method will ingest and process the raw demo file. The output of this method TBD, NEED TO FILL THIS IN ONCE DECIDED

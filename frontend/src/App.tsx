@@ -122,7 +122,7 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Demo File Ingestor</h1>
+      <h1>Demo File Input</h1>
       
       <div className="upload-section">
         <input
@@ -237,7 +237,12 @@ function App() {
 
           {/* Game Renderer Section */}
           <div className="game-section">
-            <h3>Game View</h3>
+            <div className="game-header">
+              <h3>Game View</h3>
+              <div className="round-indicator">
+                Round {roundData.roundNum}/{demoMetadata.metadata.numRounds}
+              </div>
+            </div>
             <GameRenderer
               gameMetadata={demoMetadata.metadata}
               roundState={roundState}
