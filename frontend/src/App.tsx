@@ -27,10 +27,13 @@ function App() {
     currentTickNumber,
     maxTickNumber,
     hasNextTick,
+    isAnimating,
     handleGetDemoMetadata,
     initializePlayerDataForRound,
     goToNextTick,
     jumpToTick,
+    startAnimation,
+    pauseAnimation,
     resetDemoData,
   } = useGameState();
 
@@ -173,12 +176,33 @@ function App() {
               
               <button
                 onClick={goToNextTick}
-                disabled={!hasNextTick}
+                disabled={!hasNextTick || isAnimating}
                 className="nav-btn next-btn"
                 title="Go to next tick"
               >
                 Next →
               </button>
+            </div>
+
+            {/* Animation Controls */}
+            <div className="animation-controls">
+              <h4>Animation Controls</h4>
+              <div className="animation-buttons">
+                <button
+                  onClick={isAnimating ? pauseAnimation : startAnimation}
+                  disabled={!hasNextTick && !isAnimating}
+                  className={`nav-btn animation-btn ${isAnimating ? 'pause-btn' : 'start-btn'}`}
+                  title={isAnimating ? 'Pause animation' : 'Start animation'}
+                >
+                  {isAnimating ? '⏸️ Pause' : '▶️ Start'}
+                </button>
+              </div>
+              
+              <div className="animation-status">
+                <span className={`status-indicator ${isAnimating ? 'animating' : 'paused'}`}>
+                  {isAnimating ? '🔄 Animating' : '⏹️ Paused'} - 64 ticks/sec
+                </span>
+              </div>
             </div>
             
             <div className="jump-controls">
@@ -192,6 +216,7 @@ function App() {
                 className="jump-input"
                 min={roundData.tickData.get(0)?.tick || 0}
                 max={maxTickNumber}
+                disabled={isAnimating}
               />
               <button
                 onClick={() => {
@@ -201,7 +226,7 @@ function App() {
                     setJumpTickInput('');
                   }
                 }}
-                disabled={!jumpTickInput || isNaN(parseInt(jumpTickInput))}
+                disabled={!jumpTickInput || isNaN(parseInt(jumpTickInput)) || isAnimating}
                 className="nav-btn jump-btn"
                 title="Jump to specified tick"
               >

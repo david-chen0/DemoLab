@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { GameMetadata, RoundData, RoundState, PlayerData } from '../interfaces/interfaces';
 import { parseTick } from '../lib/gameStateManager';
 import { getDemoMetadata, getDemoData } from '../services/api';
@@ -8,21 +8,28 @@ import { getDemoMetadata, getDemoData } from '../services/api';
  * round data, player states, and tick navigation for CS2 demo playback.
  */
 export const useGameState = () => {
+  // Constants
+  // TODO: Game still feels a bit quick?? Like its somehow more than 64 ticks per second, look into this
+  const TICKS_PER_SECOND = 64; // Valve forces 64 ticks per second for all servers
+
   // Stores demo metadata after successful ingestion
   const [demoMetadata, setDemoMetadata] = useState<{
     metadata: GameMetadata;
   } | null>(null);
   // Stores round data for the first round
   const [roundData, setRoundData] = useState<RoundData | null>(null);
-  // Stores current round state (first tick of first round)
-  const [roundState, setRoundState] = useState<RoundState | null>(null);
-  // Tracks the current tick index for navigation
-  const [currentTickIndex, setCurrentTickIndex] = useState<number>(0);
+  // Stores current round state - using useRef since roundState is edited in-place and needs to be edited constantly. Re-renders are controlled by renderVersion
+  const roundStateRef = useRef<RoundState | null>(null);
+  // Tracks the current tick index for navigation - using useRef for synchronous updates
+  const currentTickIndexRef = useRef<number>(0);
   // Stores the first and last tick numbers for efficient validation
   const [firstTick, setFirstTick] = useState<number>(-1);
   const [lastTick, setLastTick] = useState<number>(-1);
   // Version counter to force re-renders when roundState is mutated
   const [renderVersion, setRenderVersion] = useState<number>(0);
+  // Animation state management
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const animationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Creates a blank player for initialization purposes.
@@ -146,8 +153,8 @@ export const useGameState = () => {
         }
 
         const nextTickIndex = parseTick(roundState, 0, roundData);
-        setCurrentTickIndex(nextTickIndex);
-        setRoundState({ ...roundState });
+        currentTickIndexRef.current = nextTickIndex;
+        roundStateRef.current = roundState;
         setRenderVersion(1); // Initialize render version
 
         // Debug statements for the player's current value
@@ -164,20 +171,20 @@ export const useGameState = () => {
    * Advances to the next tick
    */
   const goToNextTick = () => {
-    if (!roundData || !roundState || currentTickIndex >= roundData.tickData.numRows) {
+    if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.tickData.numRows) {
       console.warn('Cannot advance to next tick: no more ticks available');
       return;
     }
 
     try {
       // Parse the next tick
-      const nextTickIndex = parseTick(roundState, currentTickIndex, roundData);
-      setCurrentTickIndex(nextTickIndex);
+      const nextTickIndex = parseTick(roundStateRef.current, currentTickIndexRef.current, roundData);
+      currentTickIndexRef.current = nextTickIndex;
       // Force re-render by incrementing version
       setRenderVersion(prev => prev + 1);
 
       // Debug statements for the player's current value
-      for (const player of roundState.playerMap.values()) {
+      for (const player of roundStateRef.current.playerMap.values()) {
         console.debug(`Updated player to: ${JSON.stringify(player)}`);
       }
     } catch (error) {
@@ -189,12 +196,12 @@ export const useGameState = () => {
    * Jumps to a specific tick number
    */
   const jumpToTick = (targetTick: number) => {
-    if (!roundData || !roundState) {
+    if (!roundData || !roundStateRef.current) {
       console.warn('Cannot jump to tick: no round data available');
       return;
     }
     
-    if (targetTick === roundState.tick) {
+    if (targetTick === roundStateRef.current.tick) {
       // Do nothing if already at target tick
       return;
     }
@@ -238,9 +245,9 @@ export const useGameState = () => {
     firstTickIndex += 1; // Before this, we were at the last row of the previous tick, so we need to increment by one
 
     // Parsing the current tick, which we now have the index for
-    const nextTickIndex = parseTick(roundState, firstTickIndex, roundData);
-    console.log(`Jumped to tick: ${roundState.tick}`);
-    setCurrentTickIndex(nextTickIndex);
+    const nextTickIndex = parseTick(roundStateRef.current, firstTickIndex, roundData);
+    console.log(`Jumped to tick: ${roundStateRef.current.tick}`);
+    currentTickIndexRef.current = nextTickIndex;
     // Force re-render by incrementing version, as roundState is being edited in-place so it doesn't trigger a re-render
     setRenderVersion(prev => prev + 1);
   };
@@ -249,17 +256,76 @@ export const useGameState = () => {
    * Checks if there's a next tick available
    */
   const hasNextTick = (): boolean => {
-    return roundData ? currentTickIndex < roundData.tickData.numRows : false;
+    return roundData ? currentTickIndexRef.current < roundData.tickData.numRows : false;
   };
+
+  /**
+   * Starts the animation by setting up an interval to advance ticks
+   */
+  const startAnimation = () => {
+    if (isAnimating || !roundData || !roundStateRef.current) {
+      return;
+    }
+
+    setIsAnimating(true);
+    const intervalMs = 1000 / TICKS_PER_SECOND;
+    
+    // Every intervalMs milliseconds, run this following logic
+    animationIntervalRef.current = setInterval(() => {
+      if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.tickData.numRows) {
+        // Stop animation if we've reached the end
+        pauseAnimation();
+        return;
+      }
+
+      // Now using useRef for synchronous updates - this fixes the async update bug
+      // where currentTickIndex would never actually get updated in time for the next iteration
+
+      try {
+        // Parse the next tick
+        const nextTickIndex = parseTick(roundStateRef.current, currentTickIndexRef.current, roundData);
+        currentTickIndexRef.current = nextTickIndex;
+        // Force re-render by incrementing version
+        setRenderVersion(prev => prev + 1);
+      } catch (error) {
+        console.error('Error during animation:', error);
+        pauseAnimation();
+      }
+    }, intervalMs);
+  };
+
+  /**
+   * Pauses the animation by clearing the interval
+   */
+  const pauseAnimation = () => {
+    if (animationIntervalRef.current) {
+      clearInterval(animationIntervalRef.current);
+      animationIntervalRef.current = null;
+    }
+    setIsAnimating(false);
+  };
+
+
+  /**
+   * Cleanup effect to clear animation interval on unmount
+   */
+  useEffect(() => {
+    return () => {
+      if (animationIntervalRef.current) {
+        clearInterval(animationIntervalRef.current);
+      }
+    };
+  }, []);
 
   /**
    * Resets all demo-related state
    */
   const resetDemoData = () => {
+    pauseAnimation(); // Stop any running animation
     setDemoMetadata(null);
     setRoundData(null);
-    setRoundState(null);
-    setCurrentTickIndex(0);
+    roundStateRef.current = null;
+    currentTickIndexRef.current = 0;
     setFirstTick(-1);
     setLastTick(-1);
     setRenderVersion(0);
@@ -268,15 +334,18 @@ export const useGameState = () => {
   return {
     demoMetadata,
     roundData,
-    roundState,
+    roundState: roundStateRef.current,
     renderVersion,
-    currentTickNumber: roundState?.tick ?? -1,
+    currentTickNumber: roundStateRef.current?.tick ?? -1,
     maxTickNumber: lastTick,
     hasNextTick: hasNextTick(),
+    isAnimating,
     handleGetDemoMetadata,
     initializePlayerDataForRound,
     goToNextTick,
     jumpToTick,
+    startAnimation,
+    pauseAnimation,
     resetDemoData,
   };
 };
