@@ -122,7 +122,7 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Demo File Input</h1>
+      <h1>DemoLab</h1>
       
       <div className="upload-section">
         <input
@@ -164,124 +164,131 @@ function App() {
       )}
 
       {demoMetadata && roundState && roundData && (
-        <>
-          {/* Tick Navigation Section */}
-          <div className="tick-navigation">
-            <h3>Tick Navigation</h3>
-            <div className="tick-controls">
-              <div className="tick-display">
-                <strong>Current Tick: {currentTickNumber}</strong>
-                <span className="tick-range">(Range: {roundData.tickData.get(0)?.tick || 0} - {maxTickNumber})</span>
-              </div>
-              
-              <button
-                onClick={goToNextTick}
-                disabled={!hasNextTick || isAnimating}
-                className="nav-btn next-btn"
-                title="Go to next tick"
-              >
-                Next →
-              </button>
-            </div>
-
-            {/* Animation Controls */}
-            <div className="animation-controls">
-              <h4>Animation Controls</h4>
-              <div className="animation-buttons">
-                <button
-                  onClick={isAnimating ? pauseAnimation : startAnimation}
-                  disabled={!hasNextTick && !isAnimating}
-                  className={`nav-btn animation-btn ${isAnimating ? 'pause-btn' : 'start-btn'}`}
-                  title={isAnimating ? 'Pause animation' : 'Start animation'}
-                >
-                  {isAnimating ? '⏸️ Pause' : '▶️ Start'}
-                </button>
-              </div>
-              
-              <div className="animation-status">
-                <span className={`status-indicator ${isAnimating ? 'animating' : 'paused'}`}>
-                  {isAnimating ? '🔄 Animating' : '⏹️ Paused'} - 64 ticks/sec
-                </span>
-              </div>
-            </div>
-            
-            <div className="jump-controls">
-              <label htmlFor="jumpTick">Jump to tick:</label>
-              <input
-                id="jumpTick"
-                type="number"
-                value={jumpTickInput}
-                onChange={(e) => setJumpTickInput(e.target.value)}
-                placeholder={`${roundData.tickData.get(0)?.tick || 0} - ${maxTickNumber}`}
-                className="jump-input"
-                min={roundData.tickData.get(0)?.tick || 0}
-                max={maxTickNumber}
-                disabled={isAnimating}
-              />
-              <button
-                onClick={() => {
-                  const targetTick = parseInt(jumpTickInput);
-                  if (!isNaN(targetTick)) {
-                    jumpToTick(targetTick);
-                    setJumpTickInput('');
-                  }
-                }}
-                disabled={!jumpTickInput || isNaN(parseInt(jumpTickInput)) || isAnimating}
-                className="nav-btn jump-btn"
-                title="Jump to specified tick"
-              >
-                Jump
-              </button>
-            </div>
-          </div>
-
-          {/* Game Renderer Section */}
-          <div className="game-section">
-            <div className="game-header">
-              <h3>Game View</h3>
-              <div className="round-indicator">
-                Round {roundData.roundNum}/{demoMetadata.metadata.numRounds}
-              </div>
-            </div>
-            <GameRenderer
-              gameMetadata={demoMetadata.metadata}
-              roundState={roundState}
-              renderVersion={renderVersion}
-            />
-          </div>
-          
-          {/* Demo Info Section */}
-          <div className="demo-info">
-            <h2>Demo Information</h2>
-            <div className="info-item">
-              <strong>File ID:</strong> {demoMetadata.metadata.demoId}
-            </div>
-            <div className="info-item">
-              <strong>Number of Rounds:</strong> {demoMetadata.metadata.numRounds}
-            </div>
-            <div className="info-item">
-              <strong>Map:</strong> {demoMetadata.metadata.map}
-            </div>
-            <div className="info-item">
-              <strong>Match timestamp:</strong> {demoMetadata.metadata.matchTimestamp}
-            </div>
-            <div className="info-item">
-              <strong>Server Type:</strong> {demoMetadata.metadata.serverType}
-            </div>
-            <div className="info-item">
-              <strong>Players:</strong>
-              <div className="player-list">
-                {demoMetadata.metadata.playerInfo.map((player) => (
-                <div key={player.playerId} className="player-entry">
-                  <div><strong>Name:</strong> {player.playerName}</div>
-                  <div><strong>ID:</strong> {player.playerId}</div>
-                  <div><strong>Team:</strong> {player.playerTeamNumber}</div>
+        <div className="demo-layout">
+          {/* Left Column - Game Renderer */}
+          <div className="left-column">
+            <div className="game-section">
+              <div className="game-header">
+                <h3>Game View</h3>
+                <div className="round-indicator">
+                  Round {roundData.roundNum}/{demoMetadata.metadata.numRounds}
                 </div>
-              ))}
+              </div>
+              <GameRenderer
+                gameMetadata={demoMetadata.metadata}
+                roundState={roundState}
+                renderVersion={renderVersion}
+              />
+            </div>
+          </div>
+
+          {/* Right Column - Controls and Info */}
+          <div className="right-column">
+            <div className="right-column-content">
+              {/* Tick Navigation Section */}
+              <div className="tick-navigation">
+                <h3>Tick Navigation</h3>
+                <div className="tick-controls">
+                  <div className="tick-display">
+                    <strong>Current Tick: {currentTickNumber}</strong>
+                    <span className="tick-range">(Range: {roundData.tickData.get(0)?.tick || 0} - {maxTickNumber})</span>
+                  </div>
+                  
+                  <button
+                    onClick={goToNextTick}
+                    disabled={!hasNextTick || isAnimating}
+                    className="nav-btn next-btn"
+                    title="Go to next tick"
+                  >
+                    Next →
+                  </button>
+                </div>
+
+                {/* Animation Controls */}
+                <div className="animation-controls">
+                  <h4>Animation Controls</h4>
+                  <div className="animation-buttons">
+                    <button
+                      onClick={isAnimating ? pauseAnimation : startAnimation}
+                      disabled={!hasNextTick && !isAnimating}
+                      className={`nav-btn animation-btn ${isAnimating ? 'pause-btn' : 'start-btn'}`}
+                      title={isAnimating ? 'Pause animation' : 'Start animation'}
+                    >
+                      {isAnimating ? '⏸️ Pause' : '▶️ Start'}
+                    </button>
+                  </div>
+                  
+                  <div className="animation-status">
+                    <span className={`status-indicator ${isAnimating ? 'animating' : 'paused'}`}>
+                      {isAnimating ? '🔄 Animating' : '⏹️ Paused'} - 64 ticks/sec
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="jump-controls">
+                  <label htmlFor="jumpTick">Jump to tick:</label>
+                  <input
+                    id="jumpTick"
+                    type="number"
+                    value={jumpTickInput}
+                    onChange={(e) => setJumpTickInput(e.target.value)}
+                    placeholder={`${roundData.tickData.get(0)?.tick || 0} - ${maxTickNumber}`}
+                    className="jump-input"
+                    min={roundData.tickData.get(0)?.tick || 0}
+                    max={maxTickNumber}
+                    disabled={isAnimating}
+                  />
+                  <button
+                    onClick={() => {
+                      const targetTick = parseInt(jumpTickInput);
+                      if (!isNaN(targetTick)) {
+                        jumpToTick(targetTick);
+                        setJumpTickInput('');
+                      }
+                    }}
+                    disabled={!jumpTickInput || isNaN(parseInt(jumpTickInput)) || isAnimating}
+                    className="nav-btn jump-btn"
+                    title="Jump to specified tick"
+                  >
+                    Jump
+                  </button>
+                </div>
+              </div>
+              
+              {/* Demo Info Section */}
+              <div className="demo-info">
+                <h2>Demo Information</h2>
+                <div className="info-item">
+                  <strong>File ID:</strong> {demoMetadata.metadata.demoId}
+                </div>
+                <div className="info-item">
+                  <strong>Number of Rounds:</strong> {demoMetadata.metadata.numRounds}
+                </div>
+                <div className="info-item">
+                  <strong>Map:</strong> {demoMetadata.metadata.map}
+                </div>
+                <div className="info-item">
+                  <strong>Match timestamp:</strong> {demoMetadata.metadata.matchTimestamp}
+                </div>
+                <div className="info-item">
+                  <strong>Server Type:</strong> {demoMetadata.metadata.serverType}
+                </div>
+                <div className="info-item">
+                  <strong>Players:</strong>
+                  <div className="player-list">
+                    {demoMetadata.metadata.playerInfo.map((player) => (
+                    <div key={player.playerId} className="player-entry">
+                      <div><strong>Name:</strong> {player.playerName}</div>
+                      <div><strong>ID:</strong> {player.playerId}</div>
+                      <div><strong>Team:</strong> {player.playerTeamNumber}</div>
+                    </div>
+                  ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )
