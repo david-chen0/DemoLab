@@ -1,6 +1,8 @@
 # DemoLab
 
 # Tasks that need to be done
+* Add the per-round metadata(REQUIRED BEFORE STREAMING IMPLEMENTATION)
+* Scale the image size. Currently, the map size is hardcoded to 1024 x 1024, but this won't work if the browser is too small or won't work well if browser is too large
 * Add more info to and around player icons which include:
  * Player names
  * Weapon/item they are currently holding

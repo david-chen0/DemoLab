@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import GameRenderer from './lib/gameRenderer';
+import RoundSelector from './components/RoundSelector';
 import { uploadDemoFile } from './services/api';
 import { useGameState } from './hooks/useGameState';
 import './styles/App.css';
@@ -28,8 +29,10 @@ function App() {
     maxTickNumber,
     hasNextTick,
     isAnimating,
+    selectedRound,
     handleGetDemoMetadata,
     initializePlayerDataForRound,
+    switchToRound,
     goToNextTick,
     jumpToTick,
     startAnimation,
@@ -97,9 +100,8 @@ function App() {
           throw Error("Failed to fetch game metadata");
         }
 
-        // Fetching the demo data
-        // TODO: Need to setup frontend mechanism for user to select the round that we want to display and then pass this round number into initializePlayerDataForRound
-        await initializePlayerDataForRound(gameMetadata, demoId, setError);
+        // Fetching the demo data for the selected round
+        await initializePlayerDataForRound(gameMetadata, demoId, setError, selectedRound);
       } catch (infoError) {
         setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
       }
@@ -117,7 +119,19 @@ function App() {
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
-  }
+  };
+
+  // Handle round selection
+  const handleRoundSelect = async (roundNumber: number) => {
+    if (!demoMetadata || isAnimating) return;
+    
+    await switchToRound(
+      roundNumber,
+      demoMetadata.metadata,
+      demoMetadata.metadata.demoId,
+      setError
+    );
+  };
 
 
   return (
@@ -178,6 +192,14 @@ function App() {
                 gameMetadata={demoMetadata.metadata}
                 roundState={roundState}
                 renderVersion={renderVersion}
+              />
+              
+              {/* Round Selector */}
+              <RoundSelector
+                totalRounds={demoMetadata.metadata.numRounds}
+                selectedRound={selectedRound}
+                onRoundSelect={handleRoundSelect}
+                disabled={isAnimating}
               />
             </div>
           </div>

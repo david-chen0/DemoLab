@@ -451,6 +451,122 @@
   border: 1px solid #f5c6cb;
 }
 
+/* Round Selector Styles */
+.round-selector {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: white;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+}
+
+.round-selector h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #007bff;
+  font-size: 1.1em;
+  text-align: center;
+}
+
+.round-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scroll-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 2px solid #007bff;
+  background-color: white;
+  color: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.scroll-btn:not(:disabled):hover {
+  background-color: #007bff;
+  color: white;
+  transform: scale(1.1);
+}
+
+.scroll-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.round-buttons-container {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.round-buttons-container::-webkit-scrollbar {
+  display: none;
+}
+
+.round-buttons {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  min-width: min-content;
+}
+
+.round-btn {
+  flex-shrink: 0;
+  width: 50px;
+  height: 40px;
+  border: 2px solid #dee2e6;
+  background-color: white;
+  color: #495057;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.round-btn:not(:disabled):hover {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.round-btn.selected {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.round-btn.selected:not(:disabled):hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+  color: white;
+}
+
+.round-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Responsive adjustments for animation controls */
 @media (max-width: 768px) {
   .animation-buttons {
@@ -465,5 +581,21 @@
   .animation-btn {
     min-width: auto;
     width: 100%;
+  }
+  
+  .round-selector-container {
+    gap: 0.25rem;
+  }
+  
+  .scroll-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+  }
+  
+  .round-btn {
+    width: 45px;
+    height: 35px;
+    font-size: 13px;
   }
 }

@@ -16,8 +16,10 @@ export const useGameState = () => {
   const [demoMetadata, setDemoMetadata] = useState<{
     metadata: GameMetadata;
   } | null>(null);
-  // Stores round data for the first round
+  // Stores round data for the current round
   const [roundData, setRoundData] = useState<RoundData | null>(null);
+  // Stores the currently selected round number
+  const [selectedRound, setSelectedRound] = useState<number>(1);
   // Stores current round state - using useRef since roundState is edited in-place and needs to be edited constantly. Re-renders are controlled by renderVersion
   const roundStateRef = useRef<RoundState | null>(null);
   // Tracks the current tick index for navigation - using useRef for synchronous updates
@@ -101,8 +103,14 @@ export const useGameState = () => {
     metadata: GameMetadata,
     demoId: string,
     setError: (err: string) => void,
-    roundNum: number = 6 // TODO: round 6 is used because it is guaranteed a gun round for testing, change back to round 1 when done
+    roundNum: number = 1
   ) => {
+    // Stop any running animation when switching rounds
+    pauseAnimation();
+    
+    // Update the selected round state
+    setSelectedRound(roundNum);
+    
     console.log(`Getting data for demo ${demoId} and round ${roundNum}`);
     try {
       // Fetch data for the specified round, defaults to round 1
@@ -329,6 +337,28 @@ export const useGameState = () => {
     setFirstTick(-1);
     setLastTick(-1);
     setRenderVersion(0);
+    setSelectedRound(1); // Reset to round 1
+  };
+
+  /**
+   * Switches to a different round and loads its data
+   */
+  const switchToRound = async (
+    roundNum: number,
+    metadata: GameMetadata,
+    demoId: string,
+    setError: (err: string) => void
+  ) => {
+    if (roundNum === selectedRound) {
+      // Already on this round, no need to switch
+      return;
+    }
+    
+    try {
+      await initializePlayerDataForRound(metadata, demoId, setError, roundNum);
+    } catch (error) {
+      setError(`Failed to switch to round ${roundNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return {
@@ -340,8 +370,11 @@ export const useGameState = () => {
     maxTickNumber: lastTick,
     hasNextTick: hasNextTick(),
     isAnimating,
+    selectedRound,
+    setSelectedRound,
     handleGetDemoMetadata,
     initializePlayerDataForRound,
+    switchToRound,
     goToNextTick,
     jumpToTick,
     startAnimation,

@@ -139,13 +139,17 @@ class DemoIngestorManager:
         # Gets the time that the file was created, not stored
         metadata['match_timestamp'] = datetime.datetime.fromtimestamp(os.path.getctime(filepath)).isoformat()
         
+        # TODO: We need to create round-specific metadata too, such as the ticks in that round(start to finish), who won which round(and how?), and more
+        # Frontend then uses this to generate info(ex: annotating the rounds with a color indicating the winner, showing number of ticks/seconds even during streaming method, etc)
+        # DECIDE IF WE WANT THIS IN THE GAME METADATA OR IN SEPARATE FILES, PROBABLY IN GAME METADATA AS JSON FIELDS
+        
         return metadata
 
-    # TODO: There seems to be a bug with the rounds right now, where the first round is warmup/pre-round and the last round is actually second-to-last round
-    # look into this
+    # TODO: There seems to be a bug with the rounds right now, where some rounds are not as expected, ex: Faze v Spirit round 24(in viewer) is actually round 23(in game)
+    # However, same game round 6 is equal in both viewer and game, need to look into this issue
     def ingest_demo(self, filepath: str, hash_value: Optional[str] = None):
         """
-        This method will ingest and process the raw demo file. The output of this method TBD, NEED TO FILL THIS IN ONCE DECIDED
+        This method will ingest and process the raw demo file.
 
         The current workflow is as follows:
             All events are retrieved, which gives us a list of all ticks that had an event recorded in the game
@@ -155,6 +159,8 @@ class DemoIngestorManager:
             Certain fields are converted and normalized to have a clean and easily readable form
             The ticks are partitioned by round, as each round's data is independent of each other
             The partitioned ticks are then stored in separate Parquet files under the same game's directory, which is named after the game's hash value
+            
+            Metadata on the game is also stored locally in the metadata directory as a JSON under the game's hash value name
         """
         # Getting the hash of the file, which is where we'll store it under later
         if hash_value is None:
