@@ -25,7 +25,7 @@ Usage Examples:
 """
 
 
-class DemoParserProps(Enum):
+class DemoParserPlayerProps(Enum):
     """
     Enum containing all available demo parser properties.
     Each property can be used individually or combined with others.
@@ -94,7 +94,7 @@ class DemoParserProps(Enum):
     GAME_PHASE = "game_phase"                 # Current game phase
 
     @classmethod
-    def get_category(cls, category: str) -> List['DemoParserProps']:
+    def get_category(cls, category: str) -> List['DemoParserPlayerProps']:
         """
         Get all properties from a specific category.
 
@@ -144,7 +144,7 @@ class DemoParserProps(Enum):
         return categories[category]
 
     @classmethod
-    def get_basic(cls) -> List['DemoParserProps']:
+    def get_basic(cls) -> List['DemoParserPlayerProps']:
         """Example list of basic demo props"""
         return [
             cls.TICK, cls.SECONDS, cls.PLAYER_NAME, cls.PLAYER_STEAMID, cls.TEAM_NUM,
@@ -154,9 +154,9 @@ class DemoParserProps(Enum):
     @classmethod
     def get_all(cls) -> List[str]:
         """Return all available properties."""
-        return DemoParserProps.to_strings(list(cls))
+        return DemoParserPlayerProps.to_strings(list(cls))
 
     @classmethod
-    def to_strings(cls, props: List['DemoParserProps']) -> List[str]:
+    def to_strings(cls, props: List['DemoParserPlayerProps']) -> List[str]:
         """Convert list of enum values to list of string values for demoparser2."""
         return [prop.value for prop in props]

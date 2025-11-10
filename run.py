@@ -6,13 +6,7 @@ from backend.src.config.demo_parser_events import DemoParserEvents
 from backend.src.DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 from backend.src.api.backend_activities import *
 
-
-def demo_ingestor_manager_test(filepath: str):
-    demo_ingestor_manager = DemoIngestorManager()
-    demo_ingestor_manager.ingest_demo(filepath)
-
-
-def list_game_events_and_parse_header_test(parser: DemoParser):
+def all_events_test(parser: DemoParser):
     # Get all available game events
     events = parser.list_game_events()
 
@@ -26,13 +20,11 @@ def list_game_events_and_parse_header_test(parser: DemoParser):
 
     print("-" * 30)
     print(f"Total events: {len(events)}")
-
-    # Also show some basic demo info
-    print("\nDemo Header Information:")
-    print("-" * 30)
-    header = parser.parse_header()
-    for key, value in header.items():
-        print(f"{key}: {value}")
+    
+    # Parsing specific events
+    print("Parsing all the events")
+    parsed_events = parser.parse_events(DemoParserEvents.get_all())
+    print(f"Parsed events: {parsed_events}")
 
 
 def parse_event_test(parser: DemoParser, event: str):
@@ -71,11 +63,11 @@ async def main():
     print(f"Parsing demo file: {demo_path}")
     print("=" * 50)
 
-    # # Initialize the parser
-    # parser = DemoParser(demo_path)
+    # Initialize the parser
+    parser = DemoParser(demo_path)
     
     # metadata_test(parser)
-    # list_game_events_and_parse_header_test(parser)
+    all_events_test(parser)
     # parse_event_test(parser, DemoParserEvents.BEGIN_NEW_MATCH.value)
     # parse_event_test(parser, DemoParserEvents.ROUND_END.value)
     # list_updated_fields_test(parser)

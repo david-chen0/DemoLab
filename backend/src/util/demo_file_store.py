@@ -3,7 +3,7 @@ import json
 import os
 import pandas as pd
 from typing import Optional
-from ..config.demo_parser_props import DemoParserProps
+from ..config.demo_parser_props import DemoParserPlayerProps
 
 
 class DemoFileStore:
@@ -44,7 +44,8 @@ class DemoFileStore:
             with open(f"{DemoFileStore.METADATA_DIRECTORY}/{hash_value}.json", "x") as f:
                 json.dump(metadata, f, indent=4)
         except FileExistsError:
-            print(f"File for demo with ID {hash_value} already exists, skipping")
+            print(
+                f"File for demo with ID {hash_value} already exists, skipping")
 
     @staticmethod
     def get_metadata(
@@ -102,9 +103,9 @@ class DemoFileStore:
             # TODO: add the normalizations. if not needed then remove this
 
             # Partition the DataFrame to get all the ticks in this round, inclusive of the prestart and end tick
-            start_idx = all_ticks_df[DemoParserProps.TICK.value].searchsorted(
+            start_idx = all_ticks_df[DemoParserPlayerProps.TICK.value].searchsorted(
                 round_prestart_tick, side="left")
-            end_idx = all_ticks_df[DemoParserProps.TICK.value].searchsorted(
+            end_idx = all_ticks_df[DemoParserPlayerProps.TICK.value].searchsorted(
                 round_end_tick, side="right")
 
             # Create a copy to avoid SettingWithCopyWarning and add the synthetic round number column
@@ -146,7 +147,7 @@ class DemoFileStore:
         entries = sorted(os.listdir(DemoFileStore.DEMO_DIRECTORY))
         if not entries:
             raise FileNotFoundError("No processed demo files exist yet.")
-        if not hash_value: # Assigning hash value to be a random demo's hash
+        if not hash_value:  # Assigning hash value to be a random demo's hash
             hash_value = entries[0]
 
         # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically

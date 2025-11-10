@@ -1,4 +1,5 @@
 # DemoLab
+This will only work for desktop(for now), will not work on mobile.
 
 # Tasks that need to be done
 * Add the per-round metadata(REQUIRED BEFORE STREAMING IMPLEMENTATION)
