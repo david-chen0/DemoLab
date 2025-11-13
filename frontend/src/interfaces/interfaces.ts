@@ -96,7 +96,7 @@ export interface RoundState {
 // currently meant to be immutable, as it holds a lot of data and changing anything could be costly
 export interface RoundData {
   roundNum: number; // The current round's number
-  tickData: Table; // Table of all data for the round TODO DO WE WANT TO DO IT THIS WAY, ESP IF WE WANT TO STREAM LATER ON?
+  playerData: Table; // Table of all data for the round
 }
 
 export interface GameRendererProps {

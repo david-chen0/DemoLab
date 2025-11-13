@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { GameMetadata, RoundData, RoundState, PlayerData } from '../interfaces/interfaces';
 import { parseTick } from '../lib/gameStateManager';
-import { getDemoMetadata, getDemoData } from '../services/api';
+import { getDemoMetadata, getPlayerData } from '../services/api';
 
 /**
  * Custom React hook for managing game state including demo metadata,
@@ -114,12 +114,12 @@ export const useGameState = () => {
     console.log(`Getting data for demo ${demoId} and round ${roundNum}`);
     try {
       // Fetch data for the specified round, defaults to round 1
-      const table = await getDemoData(demoId, roundNum);
+      const playerTable = await getPlayerData(demoId, roundNum);
       
       // Create RoundData object
       const roundData: RoundData = {
         roundNum: roundNum,
-        tickData: table
+        playerData: playerTable
       };
       setRoundData(roundData);
 
@@ -151,10 +151,10 @@ export const useGameState = () => {
       };
 
       // Parse only the first tick instead of all ticks
-      if (roundData.tickData.numRows > 0) {
+      if (roundData.playerData.numRows > 0) {
         // Store first and last tick numbers for efficient validation
-        const firstRow = roundData.tickData.get(0);
-        const lastRow = roundData.tickData.get(roundData.tickData.numRows - 1);
+        const firstRow = roundData.playerData.get(0);
+        const lastRow = roundData.playerData.get(roundData.playerData.numRows - 1);
         if (firstRow && lastRow) {
           setFirstTick(firstRow.tick);
           setLastTick(lastRow.tick);
@@ -179,7 +179,7 @@ export const useGameState = () => {
    * Advances to the next tick
    */
   const goToNextTick = () => {
-    if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.tickData.numRows) {
+    if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.playerData.numRows) {
       console.warn('Cannot advance to next tick: no more ticks available');
       return;
     }
@@ -222,11 +222,11 @@ export const useGameState = () => {
 
     // Binary search for the index of a row that corresponds to the tick
     let firstPtr = 0;
-    let lastPtr = roundData.tickData.numRows - 1;
+    let lastPtr = roundData.playerData.numRows - 1;
     let firstTickIndex: number;
     while (true) {
       const middlePtr = Math.floor((firstPtr + lastPtr) / 2);
-      const currentTick = roundData.tickData.get(middlePtr)!.tick;
+      const currentTick = roundData.playerData.get(middlePtr)!.tick;
       if (currentTick == targetTick) {
         // We found an index that has the same tick value
         firstTickIndex = middlePtr;
@@ -242,7 +242,7 @@ export const useGameState = () => {
     // corresponding to that tick
     firstTickIndex -= 1;
     while (firstTickIndex > 0) {
-      const currentTick = roundData.tickData.get(firstTickIndex)!.tick;
+      const currentTick = roundData.playerData.get(firstTickIndex)!.tick;
       if (currentTick != targetTick) {
         // Reached the previous tick
         break;
@@ -264,7 +264,7 @@ export const useGameState = () => {
    * Checks if there's a next tick available
    */
   const hasNextTick = (): boolean => {
-    return roundData ? currentTickIndexRef.current < roundData.tickData.numRows : false;
+    return roundData ? currentTickIndexRef.current < roundData.playerData.numRows : false;
   };
 
   /**
@@ -280,7 +280,7 @@ export const useGameState = () => {
     
     // Every intervalMs milliseconds, run this following logic
     animationIntervalRef.current = setInterval(() => {
-      if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.tickData.numRows) {
+      if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.playerData.numRows) {
         // Stop animation if we've reached the end
         pauseAnimation();
         return;

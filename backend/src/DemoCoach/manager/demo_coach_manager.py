@@ -10,21 +10,20 @@ class DemoCoachManager:
     """
 
     def __init__(self): return
-
-    def get_demo_data(self, hash_value: Optional[str], round_num: Optional[int]) -> pd.DataFrame:
+    
+    def get_demo_data(self, dataset: str, hash_value: Optional[str], round_num: Optional[int]) -> pd.DataFrame:
         """
-        Gets the demo data and returns it as a Pandas DF
+        Gets the data for the input arguments and returns it as a Pandas DF
         """
         if not hash_value:
-            print("Fetching random demo dataset amongst stored datasets")
+            print(f"Fetching random demo {dataset} dataset amongst stored demos")
         elif not round_num:
             print(
-                f"Fetching dataset for all rounds for demo file {hash_value}")
+                f"Fetching {dataset} dataset for all rounds for demo file {hash_value}")
         else:
             print(
-                f"Fetching dataset for demo file {hash_value} and round number {round_num}")
-        dataframe = DemoFileStore.get_demo_file(hash_value, round_num)
-        return dataframe
+                f"Fetching {dataset} dataset for demo file {hash_value} and round number {round_num}")
+        return DemoFileStore.get_demo_data(dataset, hash_value, round_num)
     
     def get_metadata(self, hash_value: str) -> dict:
         """

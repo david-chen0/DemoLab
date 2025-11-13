@@ -56,19 +56,36 @@ async def get_metadata(demo_id: str) -> Dict:
         return {MESSAGE_HEADER: f"Found metadata for demo with ID {demo_id}", "metadata": metadata}
     except Exception as e:
         return {ERROR_HEADER: f"Failed to find metadata for demo with ID {demo_id}: {str(e)}"}
+    
+@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_player_data")
+async def get_player_data(demo_id: Optional[str] = None, round_num: Optional[int] = None) -> StreamingResponse:
+    print(f"get_player_data(demo_id={demo_id}, round_num={round_num})")
+    
+    # TODO: Make the "player_data" and "event_data" into an enum, ex: DATA_TYPE
+    return _get_demo_data("player_data", demo_id, round_num)
+
+@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_event_data")
+async def get_event_data(demo_id: Optional[str] = None, round_num: Optional[int] = None) -> StreamingResponse:
+    print(f"get_event_data(demo_id={demo_id}, round_num={round_num})")
+    
+    return _get_demo_data("event_data", demo_id, round_num)
 
 
-@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_demo_data")
-async def get_demo_data(demo_id: Optional[str] = None, round_num: Optional[int] = None) -> StreamingResponse:
+def _get_demo_data(dataset: str, demo_id: Optional[str] = None, round_num: Optional[int] = None) -> StreamingResponse:
     """
     Gets the data for the specified demo ID, which should be the hash of the demo, and round number.
     If no demo ID is specified, then a random demo is retrieved, if any exist.
     If no round number is specified, then the entire demo's dataset is returned. Note that round_num can only be specified if demo_id is specified.
+    
+    args:
+        dataset: The dataset to fetch the data for(ex: player_data)
+        demo_id: The ID of the demo to fetch
+        round_num: The round to fetch the data for
     """
     print(f"get_demo_data(demo_id={demo_id}, round_num={round_num})")
     try:
         # Getting the Pandas DF containing the data
-        demo_dataset = demo_coach_manager.get_demo_data(demo_id, round_num)
+        demo_dataset = demo_coach_manager.get_demo_data(dataset, demo_id, round_num)
 
         # Convert DF into Arrow Table
         demo_dataset_table = pa.Table.from_pandas(demo_dataset)

@@ -60,72 +60,114 @@ class DemoFileStore:
             return json.load(f)
 
     @staticmethod
-    def store_demo_file(
+    def store_demo_files(
         hash_value: str,
-        all_ticks_df: pd.DataFrame,
+        player_data_df: pd.DataFrame,
+        event_data_df: pd.DataFrame,
         rounds_by_ticks: list[tuple[int, int]],
     ):
         """
-        This method takes in the input demo data and stores it in a compressed Parquet file.
-        The ticks are partitioned by round, as each round's data is independent of each other
-        The Parquet file is partitioned by round, giving structure like:
+        This method takes in the processed player and event Dataframes and stores them in compressed Parquet files.
+        The Parquet files are partitioned by round, as each round's data is independent of each other.
+        The Parquet structure:
         demo_data/    <--- Top-level dir
         └── <demo_hash>/    <--- Dir for the entire demo
-            └── round_num=1/      <---- Subdirectory
-                └── part-0.parquet      <----- Parquet partition
-            └── round_num=2/
-                └── part-0.parquet
-                ...
-            └── round_num=24/
-                └── part-0.parquet
+            └── player_data    <--- Dir for player data
+                └── round_num=1/    <---- Subdirectory
+                    └── part-0.parquet  <----- Parquet partition
+                    ...
+                └── round_num=24/
+                    └── part-0.parquet
+            └── event_data    <--- Dir for event data
+                └── round_num=1/    <--- Round subdirectory
+                    └── part-0.parquet  <----- Parquet partition
+                    ...
+                └── round_num=24/
+                    └── part-0.parquet
             We choose Parquet since there is a large amount of data and the file only needs to be constructed once, but read multiple times
-            Can easily convert Parquet files to JSON for human readability(if required)
-            Compression will be done with TODO: figure out what compression(ex: snappy, ZSTD, BROTLI)
+            In addition, Parquet handles and compresses null values well
+            Compression will be done with Snappy
 
         args:
-        all_ticks_df: Dataframe containing all the info we want at each tick. Function assumes data is sorted by tick
-        rounds_by_ticks: List of (start_tick, end_tick) tuples representing the rounds
+            hash_value: The hash value of the demo file, which is what we use to ID the demo
+            player_data_df: Dataframe containing all the player data, sorted by tick
+            event_data_df: Dataframe containing all the event data, sorted by tick
+            rounds_by_ticks: List of (start_tick, end_tick) tuples representing the rounds
 
         TODO: THIS IS CURRENTLY STORED LOCALLY, MOVE IT OVER TO STORE IN BLOB STORE(OR WHATEVER WE DECIDE)
         """
         # Checking if the file has already been stored locally. If so, then we skip
-        if hash_value in os.listdir(DemoFileStore.DEMO_DIRECTORY):
+        demo_path = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}"
+        if os.path.exists(demo_path):
             print(
                 f"Demo corresponding to ID {hash_value} already exists, skipping storing.")
             return
+
+        # Create the base demo directory if it doesn't exist, otherwise storing the Parquet file will fail
+        os.makedirs(DemoFileStore.DEMO_DIRECTORY, exist_ok=True)
+
+        def store_round_data_helper(
+            data_df: pd.DataFrame,
+            output_path: str,
+            round_start_tick: int,
+            round_end_tick: int,
+            round_num: int,
+        ):
+            """
+            Nested helper method to store round data for either player or event DataFrames.
+
+            Args:
+                data_df: The DataFrame containing the data to partition and store
+                output_path: The path where the parquet file should be stored
+                round_start_tick: The starting tick for this round
+                round_end_tick: The ending tick for this round
+                round_num: The round number to use for partitioning
+            """
+            # Partition the DataFrame to get all the ticks in this round, inclusive of the prestart and end tick
+            start_idx = data_df[DemoParserPlayerProps.TICK.value].searchsorted(
+                round_start_tick, side="left")
+            end_idx = data_df[DemoParserPlayerProps.TICK.value].searchsorted(
+                round_end_tick, side="right")
+
+            # Create a copy to avoid SettingWithCopyWarning and add the synthetic round number column
+            round_df = data_df.iloc[start_idx:end_idx].copy()
+            synthetic_round_num_col_name = "round_num"
+            round_df[synthetic_round_num_col_name] = round_num
+
+            # Create the output directory if it doesn't exist, otherwise storing the Parquet file will fail
+            os.makedirs(output_path, exist_ok=True)
+
+            # Store the partition in a compressed Parquet file
+            round_df.to_parquet(
+                output_path,
+                engine="pyarrow",
+                compression="snappy",
+                partition_cols=[synthetic_round_num_col_name],
+                index=False,
+            )
 
         # We need to manually count the rounds rather than relying on the round number in the DF since
         # the game data could display the round wrong(ex: Faceit counting knife round as round 1)
         # TODO: SOME GAME MODES ALSO HAVE EXTRA ROUNDS IN THE BEGINNING(EX: FACEIT HAS 3 EXTRA ROUNDS) THAT WE NEED TO OMIT
         round_num = 1
-        for round_prestart_tick, round_end_tick in rounds_by_ticks:
-            # Normalize the fields
-            # TODO: add the normalizations. if not needed then remove this
-
-            # Partition the DataFrame to get all the ticks in this round, inclusive of the prestart and end tick
-            start_idx = all_ticks_df[DemoParserPlayerProps.TICK.value].searchsorted(
-                round_prestart_tick, side="left")
-            end_idx = all_ticks_df[DemoParserPlayerProps.TICK.value].searchsorted(
-                round_end_tick, side="right")
-
-            # Create a copy to avoid SettingWithCopyWarning and add the synthetic round number column
-            round_df = all_ticks_df.iloc[start_idx:end_idx].copy()
-            synthetic_round_num_col_name = "round_num"
-            round_df[synthetic_round_num_col_name] = round_num
-
-            # Store the partition in a compressed Parquet file
-            round_df.to_parquet(
-                f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}",
-                engine="pyarrow",
-                compression="snappy",  # TODO: Figure out if this is actually the one we want to use
-                partition_cols=[synthetic_round_num_col_name],
-                index=False,
+        path_prefix = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}"
+        for round_start_tick, round_end_tick in rounds_by_ticks:
+            # Process and store both player and event data for this round
+            store_round_data_helper(
+                player_data_df, f"{path_prefix}/player_data", round_start_tick, round_end_tick, round_num
             )
+            store_round_data_helper(
+                event_data_df, f"{path_prefix}/event_data", round_start_tick, round_end_tick, round_num
+            )
+
             print(f"Created the Parquet partition for round {round_num}")
             round_num += 1
 
+        print(f"Finished creating all Parquet files for demo {hash_value}")
+
     @staticmethod
-    def get_demo_file(
+    def get_demo_data(
+        dataset: str,
         hash_value: Optional[str] = None,
         round_num: Optional[int] = None,
     ) -> pd.DataFrame:
@@ -136,6 +178,7 @@ class DemoFileStore:
         If none of these values are provided, then the entire demo of the first alphanumeric demo we have stored will be returned.
 
         args:
+            dataset: The dataset to fetch for(ex: player_data, event_data)
             hash_value: The optional hash value of the demo, which is what we use to identify the demos
             round_num: The optional round number to retrieve the data for
         """
@@ -151,7 +194,7 @@ class DemoFileStore:
             hash_value = entries[0]
 
         # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically
-        filepath = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}"
+        filepath = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}/{dataset}"
 
         if round_num:
             # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='

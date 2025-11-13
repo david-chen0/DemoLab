@@ -213,7 +213,7 @@ function App() {
                 <div className="tick-controls">
                   <div className="tick-display">
                     <strong>Current Tick: {currentTickNumber}</strong>
-                    <span className="tick-range">(Range: {roundData.tickData.get(0)?.tick || 0} - {maxTickNumber})</span>
+                    <span className="tick-range">(Range: {roundData.playerData.get(0)?.tick || 0} - {maxTickNumber})</span>
                   </div>
                   
                   <button
@@ -254,9 +254,9 @@ function App() {
                     type="number"
                     value={jumpTickInput}
                     onChange={(e) => setJumpTickInput(e.target.value)}
-                    placeholder={`${roundData.tickData.get(0)?.tick || 0} - ${maxTickNumber}`}
+                    placeholder={`${roundData.playerData.get(0)?.tick || 0} - ${maxTickNumber}`}
                     className="jump-input"
-                    min={roundData.tickData.get(0)?.tick || 0}
+                    min={roundData.playerData.get(0)?.tick || 0}
                     max={maxTickNumber}
                     disabled={isAnimating}
                   />

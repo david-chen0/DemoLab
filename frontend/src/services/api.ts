@@ -81,10 +81,30 @@ export const uploadDemoFile = async (file: File): Promise<{ message: string; dem
 };
 
 /**
- * Fetches demo data from the backend as an Apache Arrow table
+ * Fetches player data from the backend as an Apache Arrow table
  */
-export const getDemoData = async (demoId?: string, roundNumber?: number): Promise<Table> => {
-  let endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/get_demo_data`;
+export const getPlayerData = async (demoId?: string, roundNumber?: number): Promise<Table> => {
+  return getData('player_data', demoId, roundNumber);
+};
+
+/**
+ * Fetches player data from the backend as an Apache Arrow table
+ */
+export const getEventData = async (demoId?: string, roundNumber?: number): Promise<Table> => {
+  return getData('event_data', demoId, roundNumber);
+};
+
+/**
+ * Helper method to get the data from the backend and return it as an Arrow table.
+ * 
+ * TODO: Modify this to support a streaming implementation
+ * @param dataset - The dataset to retrieve(ex: player_data)
+ * @param demoId - The ID of the demo to retrieve
+ * @param roundNumber - The round to fetch data for
+ * @returns The Arrow table containing the data
+ */
+const getData = async (dataset: string, demoId?: string, roundNumber?: number): Promise<Table> => {
+  let endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/get_${dataset}`;
   if (demoId != null) {
     endpoint += `?demo_id=${encodeURIComponent(demoId)}`;
     

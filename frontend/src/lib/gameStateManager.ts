@@ -13,17 +13,19 @@ import { FIELD_MAP } from '../config/fieldMappings';
  * @returns The index that the next tick starts at
  */
 export function parseTick(roundState: RoundState, indexToStart: number, roundData: RoundData): number {
-    const tickData = roundData.tickData; // Data on all the ticks in this round
+    // TODO: This was renamed to be playerData but the implementation below still works by iterating through ticks
+    // Logic needs to be changed to go through ticks after we start supporting events too
+    const playerData = roundData.playerData; // Data on all the players in this round
     let idx = indexToStart;
-    const currentTickNum = tickData.get(idx)!.tick;
+    const currentTickNum = playerData.get(idx)!.tick;
     
     // Indicates whether we are parsing a continuous tick
     // If we are not(ex: jumping to a specific tick), then we need some special logic to avoid assumptions
     // that are made by continuous parses
     const continuousTickParse = currentTickNum == roundState.tick + 1;
 
-    while (idx < tickData.numRows) {
-        const row = tickData.get(idx);
+    while (idx < playerData.numRows) {
+        const row = playerData.get(idx);
         if (row == null) {
             throw Error(`No row found for index ${idx}, likely an issue with the calling code.`)
         }

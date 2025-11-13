@@ -63,20 +63,53 @@ class DemoIngestorManager:
         DemoParserPlayerProps.DEATHS,
         DemoParserPlayerProps.ASSISTS,
     ])
+    
+    # List of game events that we want to process
+    wanted_game_events = DemoParserEvents.to_strings([
+        DemoParserEvents.BEGIN_NEW_MATCH,
+        DemoParserEvents.BOMB_DEFUSED,
+        DemoParserEvents.BOMB_DROPPED,
+        DemoParserEvents.BOMB_EXPLODED,
+        DemoParserEvents.BOMB_PICKUP,
+        DemoParserEvents.BOMB_PLANTED,
+        DemoParserEvents.FLASHBANG_DETONATE,
+        DemoParserEvents.GRENADE_THROWN,
+        DemoParserEvents.HEGRENADE_DETONATE,
+        DemoParserEvents.INFERNO_EXPIRE,
+        DemoParserEvents.INFERNO_STARTBURN,
+        DemoParserEvents.ITEM_PICKUP,
+        DemoParserEvents.PLAYER_DEATH,
+        DemoParserEvents.PLAYER_GIVEN_C4,
+        DemoParserEvents.ROUND_END,
+        DemoParserEvents.ROUND_START,
+        DemoParserEvents.SMOKEGRENADE_DETONATE,
+        DemoParserEvents.SMOKEGRENADE_EXPIRED,
+        DemoParserEvents.WEAPON_FIRE,
+    ])
+    
+    # Map from the name of the demo parser event to the Pandas DF containing information for that event
+    # This is stored to reduce the number of parse_event calls we have to make
+    game_event_map: dict[str, pd.DataFrame] = {}
 
     def __init__(self): return
-
-    def _get_ticks_for_event(self, parser: DemoParser, events: list[str]) -> dict[str, list[int]]:
+    
+    def _get_ticks_for_events(self, events: list[str]) -> dict[str, list[int]]:
         """
-        Returns a dict mapping from the event name to the ticks where that even happened, in ascending order.
+        Returns a dict mapping from the event name to the ticks where that event happened, in ascending tick order.
         """
         event_ticks_map = {}
-        for event_name, event_df in BackoffWrapper.with_backoff_expect_result(parser.parse_events, events):
-            event_ticks_map[event_name] = event_df[DemoParserPlayerProps.TICK.value].tolist(
-            )
+        for event_name in events:
+            # We raise an error here rather than filling the map with an extra parse_events call, as we
+            # want to get all the events in the initial query to limit the number of queries
+            if event_name not in self.game_event_map:
+                raise AssertionError(f"Event {event_name} has not had its data added to the game_event_map yet, this is likely a bug in the code.")
+
+            # TODO: the ticks are npint32 rather than ints, likely isn't causing any issues but might be better for memory to store them as ints instead once we've processed them
+            event_ticks_map[event_name] = self.game_event_map[event_name][DemoParserPlayerProps.TICK.value].tolist()
+            
         return event_ticks_map
 
-    def _get_match_start_tick(self, parser: DemoParser) -> int:
+    def _get_match_start_tick(self) -> int:
         """
         Returns the tick that the match started.
         Useful for filtering for all ticks after match start
@@ -84,8 +117,7 @@ class DemoIngestorManager:
         # Assigns the value of the query to begin_new_match_events, which then checks if the list corresponding
         # to the key both exists in the dict and is non-empty
         if (
-            begin_new_match_events := self._get_ticks_for_event(
-                parser,
+            begin_new_match_events := self._get_ticks_for_events(
                 [DemoParserEvents.BEGIN_NEW_MATCH.value]
             ).get(DemoParserEvents.BEGIN_NEW_MATCH.value)
         ):
@@ -121,7 +153,7 @@ class DemoIngestorManager:
         player_info = parser.parse_player_info()
         # Some demos have weird team numbers(ex: 4-indexed), so we'll map it over to be 1-indexed
         team_number_map = {}
-        for index, row in player_info.iterrows():
+        for __, row in player_info.iterrows():
             team_num = row['team_number']
             if team_num in team_number_map:
                 team_number = team_number_map[team_num]
@@ -148,8 +180,6 @@ class DemoIngestorManager:
 
         return metadata
 
-    # TODO: There seems to be a bug with the rounds right now, where some rounds are not as expected, ex: Faze v Spirit round 24(in viewer) is actually round 23(in game)
-    # However, same game round 6 is equal in both viewer and game, need to look into this issue
     def ingest_demo(self, filepath: str, hash_value: Optional[str] = None):
         """
         This method will ingest and process the raw demo file.
@@ -195,46 +225,79 @@ class DemoIngestorManager:
         for event in all_game_events:
             if event not in DemoParserEvents.get_all():
                 print(f"Found a new event that is not in our config: {event}")
-
-        # Filter out events before the match start
-        match_start_tick = self._get_match_start_tick(parser)
-        all_events = BackoffWrapper.with_backoff_expect_result(
-            parser.parse_events, DemoParserPlayerProps.get_all()
-        )
-        filtered_events = [(event_name, df[df[DemoParserPlayerProps.TICK.value]
-                            >= match_start_tick]) for event_name, df in all_events]
+        
+        # Getting all the event information
+        game_events = BackoffWrapper.with_backoff_expect_result(parser.parse_events, self.wanted_game_events)
+        
+        # Getting the tick that the match starts at
+        match_start_df = None
+        for i, (event_name, df) in enumerate(game_events):
+            if event_name == DemoParserEvents.BEGIN_NEW_MATCH.value:
+                match_start_df = df
+                # Removing the match start event, since we only need that for backend processes and don't want to send it to the frontend
+                game_events.pop(i)
+                break
+        if match_start_df is None:
+            raise AssertionError("Match start tick was not found")
+        # TODO: For some reason, with the current code, the first round start is at 1016 but the match start tick is at 1017
+        # This means that we need to decrement the match start tick by 1
+        # Verify that either this is the case for all games or if there is another fix
+        match_start_tick = match_start_df[DemoParserPlayerProps.TICK.value][0] - 1 # There should only be one element
         print(f"Match start tick: {match_start_tick}")
+        
+        # Storing the events that happened after match start in game_event_map
+        filtered_events = [(event_name, df[df[DemoParserPlayerProps.TICK.value]
+                            >= match_start_tick]) for event_name, df in game_events]
+        for event_name, event_df in filtered_events:
+            # Adding a column to each row of the DF indicating the event type
+            event_df['event_type'] = event_name
+            
+            # Storing the modified event DF into the map
+            self.game_event_map[event_name] = event_df
+            
+        # Merging the event DFs together on top of each other first
+        # This will lead to having many columns and null values(since we need to join all columns together), but
+        # this is fine since Parquet and Arrow handle null values well
+        all_game_events_df = pd.concat(self.game_event_map.values(), ignore_index=True, sort=False)
+        # Sorting the entire DF by tick value and removing the old row numbering for a clean 0...N index
+        all_game_events_df = all_game_events_df.sort_values(DemoParserPlayerProps.TICK.value).reset_index(drop=True)
 
-        # Getting all the tick values in the game that we want
-        tick_values = set()
-        for _, df in filtered_events:
-            tick_values.update(df[DemoParserPlayerProps.TICK.value].unique())
-
-        # Getting all the information we want(from wanted_player_props) at each tick
-        all_ticks_df = BackoffWrapper.with_backoff_expect_result(
+        # Getting all the player information at each tick
+        all_player_data_df = BackoffWrapper.with_backoff_expect_result(
             parser.parse_ticks,
             wanted_props=self.wanted_player_props,
-            ticks=list(tick_values),
         ).sort_values(by=DemoParserPlayerProps.TICK.value)
-        print(f"Dataframe fields: {all_ticks_df.columns.tolist()}")
-        print(f"Number of elements in DF: {str(all_ticks_df.size)}")
-        print(f"First two element of DF: {all_ticks_df.head(10)}")
+        print(f"Dataframe fields: {all_player_data_df.columns.tolist()}")
+        print(f"Number of elements in DF: {str(all_player_data_df.size)}")
+        print(f"First two element of DF: {all_player_data_df.head(10)}")
 
         # Separate the ticks by round
         # Each round is defined by a (start_tick, end_tick) tuple, where the end tick is equal to the start tick of next round
         # Start is defined as when the players spawn in, not when the players are able to move
         # TODO: need to figure out a sanity check for "dummy rounds" like knife round, warmup(non-valve servers mark these as a round), etc
         # ex: Faceit's first three rounds aren't actually rounds, first round is warmup, second is knife, third is warmup while deciding side
-        round_start_and_end_ticks = self._get_ticks_for_event(
-            parser,
-            [
-                DemoParserEvents.ROUND_START.value,
-                DemoParserEvents.ROUND_END.value,
-            ]
-        )
+        round_start_and_end_ticks = self._get_ticks_for_events([
+            DemoParserEvents.ROUND_START.value,
+            DemoParserEvents.ROUND_END.value,
+        ])
         round_start_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_START.value]
         round_end_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_END.value]
+        # Number of round starting and ending ticks must be the same
+        if len(round_start_ticks) != len(round_end_ticks):
+            raise AssertionError(
+                f"There are {len(round_start_ticks)} round starting ticks but {len(round_end_ticks)} round ending ticks, the two need to match.\n" +
+                f"Values for these: Round starting ticks: {round_start_ticks}\n" +
+                f"Round ending ticks: {round_end_ticks}\n"
+            )
         rounds_by_ticks = list(zip(round_start_ticks, round_end_ticks))
+        # Each round's starting tick must be less than that round's ending tick and greater than the previous round's ending tick
+        previous_end_tick = -1
+        for start_tick, end_tick in rounds_by_ticks:
+            if start_tick > end_tick:
+                raise AssertionError(f"Found an instance of a round where starting tick {start_tick} is greater than end tick {end_tick}")
+            if start_tick < previous_end_tick:
+                raise AssertionError(f"Found an instance where a round's start tick {start_tick} is less than the previous round's end tick {end_tick}")
+            previous_end_tick = end_tick
         print(f"Rounds by tick: {rounds_by_ticks}")
 
         # Storing the metadata files
@@ -243,7 +306,11 @@ class DemoIngestorManager:
         DemoFileStore.store_metadata_file(hash_value, metadata)
 
         # Storing the Parquet files and deleting the input demo file
-        DemoFileStore.store_demo_file(
-            hash_value, all_ticks_df, rounds_by_ticks)
+        DemoFileStore.store_demo_files(
+            hash_value,
+            all_player_data_df,
+            all_game_events_df,
+            rounds_by_ticks
+        )
         if os.path.exists(filepath) and os.path.isfile(filepath):
             os.remove(filepath)
