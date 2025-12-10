@@ -10,6 +10,22 @@ export interface PlayerMetadata {
 };
 
 /**
+ * Contains the round metadata
+ */
+export interface RoundMetadata {
+  roundStart: number; // Tick when the round started
+  roundEnd: number; // Tick when the round ended
+};
+
+/**
+ * Backend round metadata structure (snake_case)
+ */
+export interface BackendRoundMetadata {
+  round_start: number;
+  round_end: number;
+};
+
+/**
  * Backend player metadata structure (snake_case)
  */
 export interface BackendPlayerMetadata {
@@ -28,6 +44,7 @@ export interface GameMetadata {
   numRounds: number; // Number of rounds played, ex: 24
   matchTimestamp: string; // Timestamp that the match was played, represented as a string(can be converted to Date), ex: 2025-10-26T14:32:18.123Z
   serverType: string; // Type of the server that the match was played on, ex: FACEIT
+  roundMetadata: Record<number, RoundMetadata>; // Map from round number (1-indexed) to round metadata
 };
 
 /**
@@ -40,6 +57,7 @@ export interface BackendGameMetadata {
   num_rounds: number;
   match_timestamp: string;
   server_type: string;
+  round_metadata: Record<number, BackendRoundMetadata>; // Map from round number (1-indexed) to round metadata
 };
 
 export interface PlayerData {

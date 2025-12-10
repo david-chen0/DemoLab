@@ -3,7 +3,9 @@ import type {
   GameMetadata,
   PlayerMetadata,
   BackendGameMetadata,
-  BackendPlayerMetadata
+  BackendPlayerMetadata,
+  RoundMetadata,
+  BackendRoundMetadata
 } from '../interfaces/interfaces';
 
 // API endpoint prefixes
@@ -23,6 +25,22 @@ const mapPlayerMetadata = (backendPlayer: BackendPlayerMetadata): PlayerMetadata
 };
 
 /**
+ * Maps backend round metadata (snake_case) to frontend format (camelCase)
+ */
+const mapRoundMetadata = (backendRoundMetadata: Record<number, BackendRoundMetadata>): Record<number, RoundMetadata> => {
+  const roundMetadata: Record<number, RoundMetadata> = {};
+  
+  for (const [roundNum, backendRound] of Object.entries(backendRoundMetadata)) {
+    roundMetadata[parseInt(roundNum)] = {
+      roundStart: backendRound.round_start,
+      roundEnd: backendRound.round_end,
+    };
+  }
+  
+  return roundMetadata;
+};
+
+/**
  * Maps backend game metadata (snake_case) to frontend format (camelCase)
  */
 const mapGameMetadata = (backendMetadata: BackendGameMetadata): GameMetadata => {
@@ -33,6 +51,7 @@ const mapGameMetadata = (backendMetadata: BackendGameMetadata): GameMetadata => 
     numRounds: backendMetadata.num_rounds,
     matchTimestamp: backendMetadata.match_timestamp,
     serverType: backendMetadata.server_type,
+    roundMetadata: mapRoundMetadata(backendMetadata.round_metadata),
   };
 };
 

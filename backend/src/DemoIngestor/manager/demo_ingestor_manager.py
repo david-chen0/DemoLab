@@ -124,7 +124,7 @@ class DemoIngestorManager:
             return begin_new_match_events[0]
         return 0
 
-    def _get_match_metadata(self, hash_val: str, filepath: str, parser: DemoParser, num_rounds: int) -> dict:
+    def _get_match_metadata(self, hash_val: str, filepath: str, parser: DemoParser, rounds_by_ticks: list[tuple]) -> dict:
         """
         Returns the match metadata stored as a dict so that it can later be stored in JSON format.
 
@@ -169,14 +169,24 @@ class DemoIngestorManager:
             })
 
         # Extra metadata
-        metadata['num_rounds'] = num_rounds
+        metadata['num_rounds'] = len(rounds_by_ticks)
         # Gets the time that the file was created, not stored
         metadata['match_timestamp'] = datetime.datetime.fromtimestamp(
             os.path.getctime(filepath)).isoformat()
-
-        # TODO: We need to create round-specific metadata too, such as the ticks in that round(start to finish), who won which round(and how?), and more
-        # Frontend then uses this to generate info(ex: annotating the rounds with a color indicating the winner, showing number of ticks/seconds even during streaming method, etc)
-        # DECIDE IF WE WANT THIS IN THE GAME METADATA OR IN SEPARATE FILES, PROBABLY IN GAME METADATA AS JSON FIELDS
+        
+        # Round-specific metadata
+        # TODO: Need to add more to the round metadata to support the frontend once needed
+        # ex: Who won the round, how the round was wo
+        round_metadata = {}
+        for i in range(len(rounds_by_ticks)):
+            round_specific_metadata = {} # Metadata for this round
+            
+            round_start, round_end = rounds_by_ticks[i]
+            round_specific_metadata['round_start'] = round_start
+            round_specific_metadata['round_end'] = round_end
+            
+            round_metadata[i + 1] = round_specific_metadata
+        metadata['round_metadata'] = round_metadata
 
         return metadata
 
@@ -302,7 +312,7 @@ class DemoIngestorManager:
 
         # Storing the metadata files
         metadata = self._get_match_metadata(
-            hash_value, filepath, parser, len(rounds_by_ticks))
+            hash_value, filepath, parser, rounds_by_ticks)
         DemoFileStore.store_metadata_file(hash_value, metadata)
 
         # Storing the Parquet files and deleting the input demo file
