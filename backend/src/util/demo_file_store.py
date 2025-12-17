@@ -168,12 +168,11 @@ class DemoFileStore:
     @staticmethod
     def get_demo_data(
         dataset: str,
-        hash_value: Optional[str] = None,
+        hash_value: str,
         round_num: Optional[int] = None,
     ) -> pd.DataFrame:
         """
-        Retrieves the demo corresponding to the input.
-        If hash_value is provided, then it will retrieve the demo that has the corresponding hash value.
+        Retrieves the demo corresponding to the input dataset and game(via hash_value).
         If round_num is provided, then it will only retrieve the Parquet partition for that round. round_num can not be specified if hash_value is not specified.
         If none of these values are provided, then the entire demo of the first alphanumeric demo we have stored will be returned.
 
@@ -182,18 +181,13 @@ class DemoFileStore:
             hash_value: The optional hash value of the demo, which is what we use to identify the demos
             round_num: The optional round number to retrieve the data for
         """
-        if round_num and not hash_value:
-            raise ValueError(
-                "Round number can not be specified if hash value is not specified.")
-
         # Checking if the processed demo directory has any files/subdirectories
         entries = sorted(os.listdir(DemoFileStore.DEMO_DIRECTORY))
         if not entries:
             raise FileNotFoundError("No processed demo files exist yet.")
-        if not hash_value:  # Assigning hash value to be a random demo's hash
-            hash_value = entries[0]
 
-        # If no hash_value is provided, gets the first file from the demo location, sorted alphanumerically
+        # Filepath of the demo
+        # TODO: Change this if we switch to cloud storage
         filepath = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}/{dataset}"
 
         if round_num:

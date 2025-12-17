@@ -1,5 +1,40 @@
 import { Table } from 'apache-arrow';
 
+// =============================================================================
+// Data Streaming Interfaces/types
+// =============================================================================
+
+export type DatasetName = string; // Name of the dataset
+export type ChunkIndex = number; // Index of the chunk, which needs to be synchronized across datasets since we chunk by tick
+
+/**
+ * Aggregated data for a single chunk. Each dataset contributes exactly one Arrow table for the chunk.
+ */
+export type ChunkData = {
+  [datasetName: string]: Table;
+};
+
+/**
+ * Callback invoked once a chunk is ready, which is when all datasets have contributed their data for that chunk.
+ */
+export type ChunkReadyCallback = (
+  chunkIndex: ChunkIndex,
+  data: ChunkData
+) => void;
+
+/**
+ * Represents a chunk for a table, which is how we organize the data from the backend to the frontend.
+ */
+export type StreamChunk = {
+  datasetName: string;
+  windowIndex: number; 
+  chunkTable: Table;
+}
+
+// =============================================================================
+// (Meta)Data Interfaces/Types
+// =============================================================================
+
 /**
  * Contains the player metadata
  */
@@ -111,11 +146,14 @@ export interface RoundState {
   tick: number; // The current tick that the round is on
 }
 
-// currently meant to be immutable, as it holds a lot of data and changing anything could be costly
 export interface RoundData {
   roundNum: number; // The current round's number
-  playerData: Table; // Table of all data for the round
+  tables: Map<DatasetName, Table> // Map from table's name to the currently stored table
 }
+
+// =============================================================================
+// Rendering Interfaces/Types
+// =============================================================================
 
 export interface GameRendererProps {
   gameMetadata: GameMetadata; // Metadata of the game

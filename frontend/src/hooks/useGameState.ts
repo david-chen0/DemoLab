@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import type { GameMetadata, RoundData, RoundState, PlayerData } from '../interfaces/interfaces';
-import { parseTick } from '../lib/gameStateManager';
-import { getDemoMetadata, getPlayerData } from '../services/api';
+import type { GameMetadata, RoundState, PlayerData, ChunkData, DatasetName } from '../interfaces/interfaces';
+import { parseTick } from '../lib/GameStateManager';
+import { getDemoMetadata, streamData } from '../services/api';
+import { ChunkCoordinator } from '../lib/chunkCoordinator';
+import { GameStateManager } from '../lib/GameStateManager';
 
 /**
  * Custom React hook for managing game state including demo metadata,
  * round data, player states, and tick navigation for CS2 demo playback.
+ * Now supports streaming data instead of loading everything at once.
  */
 export const useGameState = () => {
   // Constants
@@ -16,15 +19,13 @@ export const useGameState = () => {
   const [demoMetadata, setDemoMetadata] = useState<{
     metadata: GameMetadata;
   } | null>(null);
-  // Stores round data for the current round
-  const [roundData, setRoundData] = useState<RoundData | null>(null);
   // Stores the currently selected round number
   const [selectedRound, setSelectedRound] = useState<number>(1);
   // Stores current round state - using useRef since roundState is edited in-place and needs to be edited constantly. Re-renders are controlled by renderVersion
   const roundStateRef = useRef<RoundState | null>(null);
   // Tracks the current tick index for navigation - using useRef for synchronous updates
   const currentTickIndexRef = useRef<number>(0);
-  // Stores the first and last tick numbers for efficient validation
+  // Stores the first and last tick of the round for efficient validation
   const [firstTick, setFirstTick] = useState<number>(-1);
   const [lastTick, setLastTick] = useState<number>(-1);
   // Version counter to force re-renders when roundState is mutated
@@ -32,6 +33,12 @@ export const useGameState = () => {
   // Animation state management
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const animationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Streaming-related state
+  const gameStateManagerRef = useRef<GameStateManager | null>(null);
+  const chunkCoordinatorRef = useRef<ChunkCoordinator | null>(null);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [latestAvailableTick, setLatestAvailableTick] = useState<number>(-1);
 
   /**
    * Creates a blank player for initialization purposes.
@@ -93,7 +100,7 @@ export const useGameState = () => {
   };
  
   /**
-   * Initializes the necessary items that will be used to parse the player data throughout the round
+   * Initializes streaming for the specified round
    * @param metadata - Metadata on the game
    * @param demoId - ID of the demo we are using
    * @param setError - Method to set the error, provided by the caller
@@ -111,24 +118,18 @@ export const useGameState = () => {
     // Update the selected round state
     setSelectedRound(roundNum);
     
-    console.log(`Getting data for demo ${demoId} and round ${roundNum}`);
+    console.log(`Starting streaming for demo ${demoId} and round ${roundNum}`);
     try {
-      // Fetch data for the specified round, defaults to round 1
-      const playerTable = await getPlayerData(demoId, roundNum);
-      
-      // Create RoundData object
-      const roundData: RoundData = {
-        roundNum: roundNum,
-        playerData: playerTable
-      };
-      setRoundData(roundData);
+      // Initialize GameStateManager for this round
+      const gameStateManager = new GameStateManager();
+      gameStateManager.changeRound(roundNum);
+      gameStateManagerRef.current = gameStateManager;
+
 
       // Map from player steamId to their player data
       const playerMap = new Map<string, PlayerData>();
 
       // Creating blank players for the player map and the RoundState
-      // Typescript is by reference, so editing the PlayerData in-place for one
-      // of these collections will edit it for both
       for (const playerInfo of metadata.playerInfo) {
         const steamId = playerInfo.playerId;
         console.log(`Creating blank player for steam ID ${steamId}`);
@@ -138,40 +139,87 @@ export const useGameState = () => {
         console.warn(`Found ${playerMap.size} players, which is different from the expected 10.`);
       }
 
-      // Store initial player map state for resetting when going back
-      const initialMap = new Map<string, PlayerData>();
-      for (const [steamId, player] of playerMap) {
-        initialMap.set(steamId, { ...player });
-      }
-
       // This round state is how we'll display the info
       const roundState: RoundState = {
         playerMap: playerMap,
         tick: -1,
       };
+      roundStateRef.current = roundState;
 
-      // Parse only the first tick instead of all ticks
-      if (roundData.playerData.numRows > 0) {
-        // Store first and last tick numbers for efficient validation
-        const firstRow = roundData.playerData.get(0);
-        const lastRow = roundData.playerData.get(roundData.playerData.numRows - 1);
-        if (firstRow && lastRow) {
-          setFirstTick(firstRow.tick);
-          setLastTick(lastRow.tick);
+      // Set tick range from round metadata
+      const roundMetadata = metadata.roundMetadata[roundNum];
+      if (roundMetadata) {
+        setFirstTick(roundMetadata.roundStart);
+        setLastTick(roundMetadata.roundEnd);
+      }
+
+      // Reset streaming state
+      currentTickIndexRef.current = 0;
+      setLatestAvailableTick(-1);
+      setRenderVersion(1);
+
+      // Initialize ChunkCoordinator
+      const datasetNames: DatasetName[] = ['player_data']; // Add more datasets as needed
+      const coordinator = new ChunkCoordinator(
+        datasetNames,
+        (chunkIndex, chunkData) => {
+          // Handle incoming chunk
+          handleChunkReady(chunkIndex, chunkData, gameStateManager);
         }
+      );
+      chunkCoordinatorRef.current = coordinator;
 
-        const nextTickIndex = parseTick(roundState, 0, roundData);
-        currentTickIndexRef.current = nextTickIndex;
-        roundStateRef.current = roundState;
-        setRenderVersion(1); // Initialize render version
+      // Start streaming
+      setIsStreaming(true);
+      await streamData(
+        datasetNames,
+        demoId,
+        ({ datasetName, windowIndex, chunkTable }) => {
+          coordinator.onChunk(datasetName, windowIndex, chunkTable);
+        },
+        roundNum
+      );
+      setIsStreaming(false);
 
-        // Debug statements for the player's current value
-        for (const player of playerMap.values()) {
-          console.debug(`Updated player to: ${JSON.stringify(player)}`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to start streaming demo data');
+      setIsStreaming(false);
+    }
+  };
+
+  /**
+   * Handles when a chunk is ready from the coordinator
+   */
+  const handleChunkReady = (chunkIndex: number, chunkData: ChunkData, gameStateManager: GameStateManager) => {
+    try {
+      // Process each dataset in the chunk
+      for (const [datasetName, table] of Object.entries(chunkData)) {
+        gameStateManager.appendChunk(datasetName, table);
+        
+        // Update latest available tick if this is player data
+        if (datasetName === 'player_data' && table.numRows > 0) {
+          const lastRow = table.get(table.numRows - 1);
+          if (lastRow) {
+            setLatestAvailableTick(lastRow.tick);
+          }
+        }
+      }
+
+      // If this is the first chunk and we haven't started yet, parse the first tick
+      if (chunkIndex === 0 && roundStateRef.current && roundStateRef.current.tick === -1) {
+        const currentRoundData = gameStateManager.currentRoundData;
+        if (currentRoundData) {
+          try {
+            const nextTickIndex = parseTick(roundStateRef.current, 0, currentRoundData);
+            currentTickIndexRef.current = nextTickIndex;
+            setRenderVersion(prev => prev + 1);
+          } catch (error) {
+            console.warn('Could not parse first tick yet, waiting for more data:', error);
+          }
         }
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to fetch demo data');
+      console.error('Error handling chunk:', error);
     }
   };
 
@@ -179,7 +227,14 @@ export const useGameState = () => {
    * Advances to the next tick
    */
   const goToNextTick = () => {
-    if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.playerData.numRows) {
+    const roundData = gameStateManagerRef.current?.currentRoundData;
+    if (!roundData || !roundStateRef.current) {
+      console.warn('Cannot advance to next tick: no round data available');
+      return;
+    }
+
+    const playerTable = roundData.tables.get('player_data');
+    if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
       console.warn('Cannot advance to next tick: no more ticks available');
       return;
     }
@@ -204,6 +259,7 @@ export const useGameState = () => {
    * Jumps to a specific tick number
    */
   const jumpToTick = (targetTick: number) => {
+    const roundData = gameStateManagerRef.current?.currentRoundData;
     if (!roundData || !roundStateRef.current) {
       console.warn('Cannot jump to tick: no round data available');
       return;
@@ -220,13 +276,25 @@ export const useGameState = () => {
       return;
     }
 
+    // Check if target tick is available in streamed data
+    if (targetTick > latestAvailableTick) {
+      console.warn(`Target tick ${targetTick} is not yet available. Latest available: ${latestAvailableTick}`);
+      return;
+    }
+
+    const playerTable = roundData.tables.get('player_data');
+    if (!playerTable) {
+      console.warn('Cannot jump to tick: no player data available');
+      return;
+    }
+
     // Binary search for the index of a row that corresponds to the tick
     let firstPtr = 0;
-    let lastPtr = roundData.playerData.numRows - 1;
+    let lastPtr = playerTable.numRows - 1;
     let firstTickIndex: number;
     while (true) {
       const middlePtr = Math.floor((firstPtr + lastPtr) / 2);
-      const currentTick = roundData.playerData.get(middlePtr)!.tick;
+      const currentTick = playerTable.get(middlePtr)!.tick;
       if (currentTick == targetTick) {
         // We found an index that has the same tick value
         firstTickIndex = middlePtr;
@@ -242,7 +310,7 @@ export const useGameState = () => {
     // corresponding to that tick
     firstTickIndex -= 1;
     while (firstTickIndex > 0) {
-      const currentTick = roundData.playerData.get(firstTickIndex)!.tick;
+      const currentTick = playerTable.get(firstTickIndex)!.tick;
       if (currentTick != targetTick) {
         // Reached the previous tick
         break;
@@ -264,13 +332,20 @@ export const useGameState = () => {
    * Checks if there's a next tick available
    */
   const hasNextTick = (): boolean => {
-    return roundData ? currentTickIndexRef.current < roundData.playerData.numRows : false;
+    const roundData = gameStateManagerRef.current?.currentRoundData;
+    if (!roundData) return false;
+    
+    const playerTable = roundData.tables.get('player_data');
+    if (!playerTable) return false;
+    
+    return currentTickIndexRef.current < playerTable.numRows;
   };
 
   /**
    * Starts the animation by setting up an interval to advance ticks
    */
   const startAnimation = () => {
+    const roundData = gameStateManagerRef.current?.currentRoundData;
     if (isAnimating || !roundData || !roundStateRef.current) {
       return;
     }
@@ -280,7 +355,15 @@ export const useGameState = () => {
     
     // Every intervalMs milliseconds, run this following logic
     animationIntervalRef.current = setInterval(() => {
-      if (!roundData || !roundStateRef.current || currentTickIndexRef.current >= roundData.playerData.numRows) {
+      const currentRoundData = gameStateManagerRef.current?.currentRoundData;
+      if (!currentRoundData || !roundStateRef.current) {
+        // Stop animation if we've lost round data
+        pauseAnimation();
+        return;
+      }
+
+      const playerTable = currentRoundData.tables.get('player_data');
+      if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
         // Stop animation if we've reached the end
         pauseAnimation();
         return;
@@ -291,7 +374,7 @@ export const useGameState = () => {
 
       try {
         // Parse the next tick
-        const nextTickIndex = parseTick(roundStateRef.current, currentTickIndexRef.current, roundData);
+        const nextTickIndex = parseTick(roundStateRef.current, currentTickIndexRef.current, currentRoundData);
         currentTickIndexRef.current = nextTickIndex;
         // Force re-render by incrementing version
         setRenderVersion(prev => prev + 1);
@@ -331,13 +414,16 @@ export const useGameState = () => {
   const resetDemoData = () => {
     pauseAnimation(); // Stop any running animation
     setDemoMetadata(null);
-    setRoundData(null);
+    gameStateManagerRef.current = null;
+    chunkCoordinatorRef.current = null;
     roundStateRef.current = null;
     currentTickIndexRef.current = 0;
     setFirstTick(-1);
     setLastTick(-1);
+    setLatestAvailableTick(-1);
     setRenderVersion(0);
     setSelectedRound(1); // Reset to round 1
+    setIsStreaming(false);
   };
 
   /**
@@ -363,7 +449,7 @@ export const useGameState = () => {
 
   return {
     demoMetadata,
-    roundData,
+    roundData: gameStateManagerRef.current?.currentRoundData ?? null,
     roundState: roundStateRef.current,
     renderVersion,
     currentTickNumber: roundStateRef.current?.tick ?? -1,
@@ -380,5 +466,7 @@ export const useGameState = () => {
     startAnimation,
     pauseAnimation,
     resetDemoData,
+    isStreaming,
+    latestAvailableTick,
   };
 };

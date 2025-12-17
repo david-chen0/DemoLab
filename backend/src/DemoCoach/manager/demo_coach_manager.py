@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 from typing import Optional
 from ...util.demo_file_store import DemoFileStore
@@ -11,13 +10,11 @@ class DemoCoachManager:
 
     def __init__(self): return
     
-    def get_demo_data(self, dataset: str, hash_value: Optional[str], round_num: Optional[int]) -> pd.DataFrame:
+    def get_demo_data(self, dataset: str, hash_value: str, round_num: Optional[int]) -> pd.DataFrame:
         """
         Gets the data for the input arguments and returns it as a Pandas DF
         """
-        if not hash_value:
-            print(f"Fetching random demo {dataset} dataset amongst stored demos")
-        elif not round_num:
+        if not round_num:
             print(
                 f"Fetching {dataset} dataset for all rounds for demo file {hash_value}")
         else:

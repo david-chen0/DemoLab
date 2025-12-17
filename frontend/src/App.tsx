@@ -6,8 +6,7 @@ import { useGameState } from './hooks/useGameState';
 import './styles/App.css';
 
 function App() {
-  // TODO: WOULD PROBABLY MAKE SENSE TO MOVE ALL THESE CONTEXT INTO A SEPARATE FILE/FOLDER AND MANAGE IT FROM THERE
-
+  
   // Stores the file the file that the user is uploading for demo ingestion
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   // Indicates whether we are uploading a file to our backend for ingestion
@@ -213,7 +212,7 @@ function App() {
                 <div className="tick-controls">
                   <div className="tick-display">
                     <strong>Current Tick: {currentTickNumber}</strong>
-                    <span className="tick-range">(Range: {roundData.playerData.get(0)?.tick || 0} - {maxTickNumber})</span>
+                    <span className="tick-range">(Range: {demoMetadata.metadata.roundMetadata[selectedRound].roundStart} - {maxTickNumber})</span>
                   </div>
                   
                   <button
@@ -254,9 +253,9 @@ function App() {
                     type="number"
                     value={jumpTickInput}
                     onChange={(e) => setJumpTickInput(e.target.value)}
-                    placeholder={`${roundData.playerData.get(0)?.tick || 0} - ${maxTickNumber}`}
+                    placeholder={`${demoMetadata.metadata.roundMetadata[selectedRound]?.roundStart || 0} - ${maxTickNumber}`}
                     className="jump-input"
-                    min={roundData.playerData.get(0)?.tick || 0}
+                    min={demoMetadata.metadata.roundMetadata[selectedRound]?.roundStart || 0}
                     max={maxTickNumber}
                     disabled={isAnimating}
                   />

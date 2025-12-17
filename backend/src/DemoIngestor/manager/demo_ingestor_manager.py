@@ -176,7 +176,7 @@ class DemoIngestorManager:
         
         # Round-specific metadata
         # TODO: Need to add more to the round metadata to support the frontend once needed
-        # ex: Who won the round, how the round was wo
+        # ex: Who won the round, how the round was won, etc
         round_metadata = {}
         for i in range(len(rounds_by_ticks)):
             round_specific_metadata = {} # Metadata for this round

@@ -1,5 +1,40 @@
+import { Table } from 'apache-arrow';
 import type { RoundData, RoundState } from '../interfaces/interfaces';
 import { FIELD_MAP } from '../config/fieldMappings';
+
+// this class will be responsible for getting the data and for parsing the data too
+export class GameStateManager {
+  public currentRoundData: RoundData | null = null;
+
+  /**
+   * Changes to the specified round, which clears all previous data
+   */
+  changeRound(roundNum: number) {
+    this.currentRoundData = {
+      roundNum,
+      tables: new Map(),
+    };
+  }
+
+  appendChunk(
+    datasetName: string,
+    tableChunk: Table,
+  ) {
+    if (!this.currentRoundData) {
+      throw new Error("No round selected so far");
+    }
+
+    const prevTable = this.currentRoundData.tables.get(datasetName);
+    if (!prevTable) { // No data for this table in this round yet
+      this.currentRoundData.tables.set(datasetName, tableChunk);
+    } else {
+      const newTable = prevTable.concat(tableChunk);
+      this.currentRoundData.tables.set(datasetName, newTable);
+    }
+  }
+}
+
+// TODO: move this method into game state manager? or a different class/file
 
 /**
  * Parses the data relating to the current tick and updates the PlayerData's stored in the RoundState in-place.
@@ -13,10 +48,19 @@ import { FIELD_MAP } from '../config/fieldMappings';
  * @returns The index that the next tick starts at
  */
 export function parseTick(roundState: RoundState, indexToStart: number, roundData: RoundData): number {
-    // TODO: This was renamed to be playerData but the implementation below still works by iterating through ticks
-    // Logic needs to be changed to go through ticks after we start supporting events too
-    const playerData = roundData.playerData; // Data on all the players in this round
+    // Get the player data table from the tables map
+    const playerData = roundData.tables.get('player_data');
+    if (!playerData) {
+        throw Error('No player_data table found in roundData');
+    }
+    
     let idx = indexToStart;
+    
+    // Check if we have enough data to parse this tick
+    if (idx >= playerData.numRows) {
+        throw Error(`Cannot parse tick: index ${idx} is beyond available data (${playerData.numRows} rows)`);
+    }
+    
     const currentTickNum = playerData.get(idx)!.tick;
     
     // Indicates whether we are parsing a continuous tick
