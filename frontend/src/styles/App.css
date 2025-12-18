@@ -264,7 +264,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0; /* Allow shrinking */
+  min-width: 350px; /* Minimum width for controls */
+  max-width: 500px; /* Maximum width to prevent it from getting too wide */
 }
 
 .right-column-content {
@@ -302,9 +303,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 1060px;
-  width: fit-content;
-  /* Let GameRenderer determine natural height */
+  width: 100%;
+  max-width: 100%;
+  /* Let GameRenderer determine natural height and width */
 }
 
 .game-header {
@@ -567,8 +568,38 @@
   box-shadow: none;
 }
 
-/* Responsive adjustments for animation controls */
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .demo-layout {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .left-column {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .right-column {
+    min-width: auto;
+    max-width: none;
+    flex: 1;
+  }
+}
+
 @media (max-width: 768px) {
+  .app {
+    padding: 1rem;
+  }
+  
+  .demo-layout {
+    gap: 1rem;
+  }
+  
+  .game-section {
+    padding: 1rem;
+  }
+  
   .animation-buttons {
     flex-direction: column;
     align-items: stretch;
@@ -597,5 +628,37 @@
     width: 45px;
     height: 35px;
     font-size: 13px;
+  }
+  
+  .tick-controls {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .jump-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .app {
+    padding: 0.5rem;
+  }
+  
+  .left-column {
+    min-width: 300px;
+  }
+  
+  .game-section {
+    padding: 0.5rem;
+  }
+  
+  .demo-info {
+    padding: 1rem;
+  }
+  
+  .tick-navigation {
+    padding: 1rem;
   }
 }

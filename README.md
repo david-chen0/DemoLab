@@ -4,11 +4,12 @@ This will only work for desktop(for now), will not work on mobile.
 # Tasks
 * (Done) Add the per-round metadata
 * (Done) Change data communication to use streaming rather than waiting for the entire table to be sent(Done)
+* (Done) Scale the UI elements by how big the user's window is
+* Add UI to show how much of the round is currently loaded(ex: a bar to represent the round, where we have a gray running bar to show how much has been currently loaded in)
 * Add game events and states, which include:
  * Nades being thrown and popping
  * Killfeed(decide whether we want to persist it or just have it for a few seconds)
  * Bomb plant and timer
-* Add UI to show how much of the round is currently loaded(ex: a bar to represent the round, where we have a gray running bar to show how much has been currently loaded in)
 * Scale the image size. Currently, the map size is hardcoded to 1024 x 1024, but this won't work if the browser is too small or won't work well if browser is too large
 * Add more info to and around player icons which include:
  * Player names
