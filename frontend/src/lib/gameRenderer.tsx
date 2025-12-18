@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   GameRendererProps,
 } from '../interfaces/interfaces';
@@ -64,8 +64,11 @@ export default function GameRenderer({
 }: GameRendererProps) {
   console.log(`Rendering the game state for game ${JSON.stringify(gameMetadata)} at tick ${roundState.tick}`)
 
-  // Get responsive game size
-  const { width: gameWidth, height: gameHeight } = useResponsiveGameSize({
+  // State to track actual canvas dimensions based on map image
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 1024, height: 1024 });
+
+  // Get responsive game size (this gives us the maximum available space)
+  const { width: maxWidth, height: maxHeight } = useResponsiveGameSize({
     minSize: 400,
     maxSize: 1024,
     aspectRatio: 1,
@@ -85,10 +88,6 @@ export default function GameRenderer({
     const ctx = mapCanvas.getContext("2d");
     if (!ctx) return;
     
-    // Set canvas size
-    mapCanvas.width = gameWidth;
-    mapCanvas.height = gameHeight;
-    
     // Getting the image to display
     const mapName = gameMetadata.map;
     const mapImagePath = `${MAP_BACKGROUND_PATH_PREFIX}/${mapName}.webp`;
@@ -97,14 +96,49 @@ export default function GameRenderer({
     const img = new Image();
     img.src = mapImagePath; // Starts loading the image asynchronously
     img.onload = () => {
+      // Calculate the aspect ratio of the original image
+      const imageAspectRatio = img.width / img.height;
+      
+      // Calculate canvas dimensions that fit within our max size while preserving aspect ratio
+      let canvasWidth, canvasHeight;
+      
+      if (imageAspectRatio > 1) {
+        // Image is wider than tall
+        canvasWidth = Math.min(maxWidth, img.width);
+        canvasHeight = canvasWidth / imageAspectRatio;
+        
+        // If height exceeds max, scale down
+        if (canvasHeight > maxHeight) {
+          canvasHeight = maxHeight;
+          canvasWidth = canvasHeight * imageAspectRatio;
+        }
+      } else {
+        // Image is taller than wide or square
+        canvasHeight = Math.min(maxHeight, img.height);
+        canvasWidth = canvasHeight * imageAspectRatio;
+        
+        // If width exceeds max, scale down
+        if (canvasWidth > maxWidth) {
+          canvasWidth = maxWidth;
+          canvasHeight = canvasWidth / imageAspectRatio;
+        }
+      }
+      
+      // Update canvas dimensions
+      mapCanvas.width = canvasWidth;
+      mapCanvas.height = canvasHeight;
+      
+      // Store dimensions for player canvas
+      setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
+      
       // Clear the canvas, then draw the background scaled to fit
-      ctx.clearRect(0, 0, gameWidth, gameHeight);
-      ctx.drawImage(img, 0, 0, gameWidth, gameHeight);
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
     };
     img.onerror = () => {
       console.error(`Failed to load map image: ${mapImagePath}`);
     };
-  }, [gameMetadata.map, gameWidth, gameHeight]); // Update when map or size changes
+  }, [gameMetadata.map, maxWidth, maxHeight]); // Update when map or max size changes
 
   // Drawing the players, only drawn when their state changes
   useEffect(() => {
@@ -116,15 +150,15 @@ export default function GameRenderer({
     const ctx = playerCanvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size
-    playerCanvas.width = gameWidth;
-    playerCanvas.height = gameHeight;
+    // Set canvas size to match the map canvas
+    playerCanvas.width = canvasDimensions.width;
+    playerCanvas.height = canvasDimensions.height;
 
     // Clears the overlay to make space for the new player states
-    ctx.clearRect(0, 0, gameWidth, gameHeight);
+    ctx.clearRect(0, 0, canvasDimensions.width, canvasDimensions.height);
 
     // Calculate player dot size based on canvas size
-    const playerDotRadius = Math.max(3, gameWidth / 200);
+    const playerDotRadius = Math.max(3, canvasDimensions.width / 200);
 
     // For each player, draw a circle based on their position and team
     for (const player of roundState.playerMap.values()) {
@@ -133,8 +167,8 @@ export default function GameRenderer({
         gameMetadata.map,
         player.x,
         player.y,
-        gameWidth,
-        gameHeight
+        canvasDimensions.width,
+        canvasDimensions.height
       );
       
       // TODO: Figure out how to display Z if important(ex: on Nuke)
@@ -161,23 +195,23 @@ export default function GameRenderer({
       ctx.fillStyle = fillStyle;
       ctx.fill();
     }
-  }, [roundState, gameMetadata.map, renderVersion, gameWidth, gameHeight]); // Update when roundState, map, or size changes
+  }, [roundState, gameMetadata.map, renderVersion, canvasDimensions]); // Update when roundState, map, or size changes
 
   // Returns the two canvases
   // mapCanvas(zIndex = 0) is the static visual background
   // playerCanvas(zIndex = 1) is the player canvas on top with frequent redraws
   return (
-    <div style={{ position: "relative", width: gameWidth, height: gameHeight }}>
+    <div style={{ position: "relative", width: canvasDimensions.width, height: canvasDimensions.height }}>
       <canvas
         ref={mapCanvasRef}
-        width={gameWidth}
-        height={gameHeight}
+        width={canvasDimensions.width}
+        height={canvasDimensions.height}
         style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
       />
       <canvas
         ref={playerCanvasRef}
-        width={gameWidth}
-        height={gameHeight}
+        width={canvasDimensions.width}
+        height={canvasDimensions.height}
         style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
       />
     </div>

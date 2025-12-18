@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import GameRenderer from './lib/gameRenderer';
 import RoundSelector from './components/RoundSelector';
 import { uploadDemoFile } from './services/api';
@@ -26,21 +26,60 @@ function App() {
     renderVersion,
     currentTickNumber,
     maxTickNumber,
-    hasNextTick,
     isAnimating,
     selectedRound,
     handleGetDemoMetadata,
     initializePlayerDataForRound,
     switchToRound,
-    goToNextTick,
     jumpToTick,
     startAnimation,
     pauseAnimation,
     resetDemoData,
   } = useGameState();
 
-  // State for jump-to-tick input
-  const [jumpTickInput, setJumpTickInput] = useState<string>('');
+  // State for auto-hiding controls
+  const [showControls, setShowControls] = useState(true);
+  const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-hide controls logic
+  const showControlsTemporarily = () => {
+    setShowControls(true);
+    
+    // Clear existing timeout
+    if (hideControlsTimeoutRef.current) {
+      clearTimeout(hideControlsTimeoutRef.current);
+    }
+    
+    // Set new timeout to hide controls after 3 seconds
+    hideControlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  // Handle mouse movement over game area
+  const handleMouseMove = () => {
+    showControlsTemporarily();
+  };
+
+  // Handle mouse leave from game area
+  const handleMouseLeave = () => {
+    if (hideControlsTimeoutRef.current) {
+      clearTimeout(hideControlsTimeoutRef.current);
+    }
+    // Hide controls immediately when mouse leaves
+    hideControlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 1000);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideControlsTimeoutRef.current) {
+        clearTimeout(hideControlsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   /**
    * Handles the file selection, where users are prompted to select a file for use.
@@ -98,6 +137,20 @@ function App() {
         if (gameMetadata == undefined) {
           throw Error("Failed to fetch game metadata");
         }
+
+        // Console log the demo information instead of displaying it
+        console.log('Demo Information:', {
+          fileId: gameMetadata.demoId,
+          numberOfRounds: gameMetadata.numRounds,
+          map: gameMetadata.map,
+          matchTimestamp: gameMetadata.matchTimestamp,
+          serverType: gameMetadata.serverType,
+          players: gameMetadata.playerInfo.map(player => ({
+            name: player.playerName,
+            id: player.playerId,
+            team: player.playerTeamNumber
+          }))
+        });
 
         // Fetching the demo data for the selected round
         await initializePlayerDataForRound(gameMetadata, demoId, setError, selectedRound);
@@ -177,137 +230,67 @@ function App() {
       )}
 
       {demoMetadata && roundState && roundData && (
-        <div className="demo-layout">
-          {/* Left Column - Game Renderer */}
-          <div className="left-column">
-            <div className="game-section">
-              <div className="game-header">
-                <h3>Game View</h3>
-                <div className="round-indicator">
-                  Round {roundData.roundNum}/{demoMetadata.metadata.numRounds}
-                </div>
+        <div className="game-layout">
+          <div
+            className="game-section"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className="game-header">
+              <h3>Game View</h3>
+              <div className="round-indicator">
+                Round {roundData.roundNum}/{demoMetadata.metadata.numRounds}
               </div>
-              <GameRenderer
-                gameMetadata={demoMetadata.metadata}
-                roundState={roundState}
-                renderVersion={renderVersion}
-              />
-              
-              {/* Round Selector */}
-              <RoundSelector
-                totalRounds={demoMetadata.metadata.numRounds}
-                selectedRound={selectedRound}
-                onRoundSelect={handleRoundSelect}
-                disabled={isAnimating}
-              />
             </div>
-          </div>
-
-          {/* Right Column - Controls and Info */}
-          <div className="right-column">
-            <div className="right-column-content">
-              {/* Tick Navigation Section */}
-              <div className="tick-navigation">
-                <h3>Tick Navigation</h3>
-                <div className="tick-controls">
-                  <div className="tick-display">
-                    <strong>Current Tick: {currentTickNumber}</strong>
-                    <span className="tick-range">(Range: {demoMetadata.metadata.roundMetadata[selectedRound].roundStart} - {maxTickNumber})</span>
-                  </div>
-                  
-                  <button
-                    onClick={goToNextTick}
-                    disabled={!hasNextTick || isAnimating}
-                    className="nav-btn next-btn"
-                    title="Go to next tick"
-                  >
-                    Next →
-                  </button>
-                </div>
-
-                {/* Animation Controls */}
-                <div className="animation-controls">
-                  <h4>Animation Controls</h4>
-                  <div className="animation-buttons">
-                    <button
-                      onClick={isAnimating ? pauseAnimation : startAnimation}
-                      disabled={!hasNextTick && !isAnimating}
-                      className={`nav-btn animation-btn ${isAnimating ? 'pause-btn' : 'start-btn'}`}
-                      title={isAnimating ? 'Pause animation' : 'Start animation'}
-                    >
-                      {isAnimating ? '⏸️ Pause' : '▶️ Start'}
-                    </button>
-                  </div>
-                  
-                  <div className="animation-status">
-                    <span className={`status-indicator ${isAnimating ? 'animating' : 'paused'}`}>
-                      {isAnimating ? '🔄 Animating' : '⏹️ Paused'} - 64 ticks/sec
-                    </span>
-                  </div>
-                </div>
+            <GameRenderer
+              gameMetadata={demoMetadata.metadata}
+              roundState={roundState}
+              renderVersion={renderVersion}
+            />
+            
+            {/* Game Controls - Auto-hide like video player */}
+            <div className={`game-controls ${showControls ? 'show' : ''}`}>
+              <div className="playback-controls">
+                <button
+                  onClick={isAnimating ? pauseAnimation : startAnimation}
+                  className={`playback-btn ${isAnimating ? 'pause' : 'play'}`}
+                  title={isAnimating ? 'Pause' : 'Play'}
+                >
+                  {isAnimating ? '⏸️' : '▶️'}
+                </button>
                 
-                <div className="jump-controls">
-                  <label htmlFor="jumpTick">Jump to tick:</label>
-                  <input
-                    id="jumpTick"
-                    type="number"
-                    value={jumpTickInput}
-                    onChange={(e) => setJumpTickInput(e.target.value)}
-                    placeholder={`${demoMetadata.metadata.roundMetadata[selectedRound]?.roundStart || 0} - ${maxTickNumber}`}
-                    className="jump-input"
-                    min={demoMetadata.metadata.roundMetadata[selectedRound]?.roundStart || 0}
-                    max={maxTickNumber}
-                    disabled={isAnimating}
-                  />
-                  <button
-                    onClick={() => {
-                      const targetTick = parseInt(jumpTickInput);
-                      if (!isNaN(targetTick)) {
-                        jumpToTick(targetTick);
-                        setJumpTickInput('');
-                      }
+                <div className="progress-container">
+                  <div
+                    className="progress-bar"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const clickX = e.clientX - rect.left;
+                      const percentage = clickX / rect.width;
+                      const roundStart = demoMetadata.metadata.roundMetadata[selectedRound].roundStart;
+                      const roundEnd = maxTickNumber;
+                      const targetTick = Math.round(roundStart + (roundEnd - roundStart) * percentage);
+                      jumpToTick(targetTick);
                     }}
-                    disabled={!jumpTickInput || isNaN(parseInt(jumpTickInput)) || isAnimating}
-                    className="nav-btn jump-btn"
-                    title="Jump to specified tick"
                   >
-                    Jump
-                  </button>
-                </div>
-              </div>
-              
-              {/* Demo Info Section */}
-              <div className="demo-info">
-                <h2>Demo Information</h2>
-                <div className="info-item">
-                  <strong>File ID:</strong> {demoMetadata.metadata.demoId}
-                </div>
-                <div className="info-item">
-                  <strong>Number of Rounds:</strong> {demoMetadata.metadata.numRounds}
-                </div>
-                <div className="info-item">
-                  <strong>Map:</strong> {demoMetadata.metadata.map}
-                </div>
-                <div className="info-item">
-                  <strong>Match timestamp:</strong> {demoMetadata.metadata.matchTimestamp}
-                </div>
-                <div className="info-item">
-                  <strong>Server Type:</strong> {demoMetadata.metadata.serverType}
-                </div>
-                <div className="info-item">
-                  <strong>Players:</strong>
-                  <div className="player-list">
-                    {demoMetadata.metadata.playerInfo.map((player) => (
-                    <div key={player.playerId} className="player-entry">
-                      <div><strong>Name:</strong> {player.playerName}</div>
-                      <div><strong>ID:</strong> {player.playerId}</div>
-                      <div><strong>Team:</strong> {player.playerTeamNumber}</div>
-                    </div>
-                  ))}
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: `${((currentTickNumber - demoMetadata.metadata.roundMetadata[selectedRound].roundStart) /
+                          (maxTickNumber - demoMetadata.metadata.roundMetadata[selectedRound].roundStart)) * 100}%`
+                      }}
+                    />
                   </div>
                 </div>
               </div>
             </div>
+            
+            {/* Round Selector */}
+            <RoundSelector
+              totalRounds={demoMetadata.metadata.numRounds}
+              selectedRound={selectedRound}
+              onRoundSelect={handleRoundSelect}
+              disabled={isAnimating}
+            />
           </div>
         </div>
       )}

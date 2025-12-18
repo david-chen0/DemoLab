@@ -5,7 +5,7 @@ This will only work for desktop(for now), will not work on mobile.
 * (Done) Add the per-round metadata
 * (Done) Change data communication to use streaming rather than waiting for the entire table to be sent(Done)
 * (Done) Scale the UI elements by how big the user's window is
-* Add UI to show how much of the round is currently loaded(ex: a bar to represent the round, where we have a gray running bar to show how much has been currently loaded in)
+* (Done) Add UI to show how much of the round is currently loaded(ex: a bar to represent the round, where we have a gray running bar to show how much has been currently loaded in)
 * Add game events and states, which include:
  * Nades being thrown and popping
  * Killfeed(decide whether we want to persist it or just have it for a few seconds)

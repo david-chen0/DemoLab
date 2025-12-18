@@ -35,27 +35,12 @@ export function useResponsiveGameSize(options: UseResponsiveGameSizeOptions = {}
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    console.log(`Calculating game size for viewport: ${viewportWidth}x${viewportHeight}`);
-
-    // Account for header, controls, and other UI elements
-    // Estimate space taken by header (~100px), upload section (~150px), and padding
-    const availableHeight = viewportHeight - 250 - padding * 2;
+    // Account for header, upload section, round selector, and padding
+    // Estimate space taken by header (~100px), upload section (~150px), round selector (~100px), and padding
+    const availableHeight = viewportHeight - 350 - padding * 2;
     
-    let availableWidth: number;
-    
-    // Handle different screen sizes
-    if (viewportWidth <= 1200) {
-      // Mobile/tablet: stacked layout, use full width minus padding
-      availableWidth = viewportWidth - padding * 4; // Extra padding for mobile
-      console.log(`Mobile/tablet layout: availableWidth = ${availableWidth}`);
-    } else {
-      // Desktop: side-by-side layout
-      // Right column: min 350px, max 500px, plus gap (2rem = 32px), plus app padding (4rem = 64px)
-      const rightColumnWidth = Math.min(500, Math.max(350, viewportWidth * 0.3));
-      const layoutOverhead = rightColumnWidth + 32 + 64; // right column + gap + app padding
-      availableWidth = Math.max(minSize, viewportWidth - layoutOverhead);
-      console.log(`Desktop layout: rightColumnWidth = ${rightColumnWidth}, availableWidth = ${availableWidth}`);
-    }
+    // Single column layout: use most of the width minus padding
+    const availableWidth = viewportWidth - padding * 4;
 
     // Calculate size based on the limiting dimension, maintaining square aspect ratio
     let size = Math.min(availableWidth, availableHeight);
@@ -66,8 +51,6 @@ export function useResponsiveGameSize(options: UseResponsiveGameSizeOptions = {}
     // Calculate final dimensions based on aspect ratio
     const width = size;
     const height = size / aspectRatio;
-
-    console.log(`Final game size: ${width}x${height}`);
 
     setGameSize({
       width: Math.round(width),
