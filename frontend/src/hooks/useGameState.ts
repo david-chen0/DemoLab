@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import type { GameMetadata, RoundState, PlayerData, ChunkData, DatasetName } from '../interfaces/interfaces';
-import { parseTick } from '../lib/GameStateManager';
 import { getDemoMetadata, streamData } from '../services/api';
 import { ChunkCoordinator } from '../lib/chunkCoordinator';
 import { GameStateManager } from '../lib/GameStateManager';
@@ -207,10 +206,9 @@ export const useGameState = () => {
 
       // If this is the first chunk and we haven't started yet, parse the first tick
       if (chunkIndex === 0 && roundStateRef.current && roundStateRef.current.tick === -1) {
-        const currentRoundData = gameStateManager.currentRoundData;
-        if (currentRoundData) {
+        if (gameStateManager.currentRoundData) {
           try {
-            const nextTickIndex = parseTick(roundStateRef.current, 0, currentRoundData);
+            const nextTickIndex = gameStateManager.parseTick(roundStateRef.current, 0);
             currentTickIndexRef.current = nextTickIndex;
             setRenderVersion(prev => prev + 1);
           } catch (error) {
@@ -227,13 +225,13 @@ export const useGameState = () => {
    * Advances to the next tick
    */
   const goToNextTick = () => {
-    const roundData = gameStateManagerRef.current?.currentRoundData;
-    if (!roundData || !roundStateRef.current) {
+    const gameStateManager = gameStateManagerRef.current;
+    if (!gameStateManager?.currentRoundData || !roundStateRef.current) {
       console.warn('Cannot advance to next tick: no round data available');
       return;
     }
 
-    const playerTable = roundData.tables.get('player_data');
+    const playerTable = gameStateManager.currentRoundData.tables.get('player_data');
     if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
       console.warn('Cannot advance to next tick: no more ticks available');
       return;
@@ -241,7 +239,7 @@ export const useGameState = () => {
 
     try {
       // Parse the next tick
-      const nextTickIndex = parseTick(roundStateRef.current, currentTickIndexRef.current, roundData);
+      const nextTickIndex = gameStateManager.parseTick(roundStateRef.current, currentTickIndexRef.current);
       currentTickIndexRef.current = nextTickIndex;
       // Force re-render by incrementing version
       setRenderVersion(prev => prev + 1);
@@ -259,8 +257,8 @@ export const useGameState = () => {
    * Jumps to a specific tick number
    */
   const jumpToTick = (targetTick: number) => {
-    const roundData = gameStateManagerRef.current?.currentRoundData;
-    if (!roundData || !roundStateRef.current) {
+    const gameStateManager = gameStateManagerRef.current;
+    if (!gameStateManager?.currentRoundData || !roundStateRef.current) {
       console.warn('Cannot jump to tick: no round data available');
       return;
     }
@@ -282,7 +280,7 @@ export const useGameState = () => {
       return;
     }
 
-    const playerTable = roundData.tables.get('player_data');
+    const playerTable = gameStateManager.currentRoundData.tables.get('player_data');
     if (!playerTable) {
       console.warn('Cannot jump to tick: no player data available');
       return;
@@ -321,7 +319,7 @@ export const useGameState = () => {
     firstTickIndex += 1; // Before this, we were at the last row of the previous tick, so we need to increment by one
 
     // Parsing the current tick, which we now have the index for
-    const nextTickIndex = parseTick(roundStateRef.current, firstTickIndex, roundData);
+    const nextTickIndex = gameStateManager.parseTick(roundStateRef.current, firstTickIndex);
     console.log(`Jumped to tick: ${roundStateRef.current.tick}`);
     currentTickIndexRef.current = nextTickIndex;
     // Force re-render by incrementing version, as roundState is being edited in-place so it doesn't trigger a re-render
@@ -345,8 +343,8 @@ export const useGameState = () => {
    * Starts the animation by setting up an interval to advance ticks
    */
   const startAnimation = () => {
-    const roundData = gameStateManagerRef.current?.currentRoundData;
-    if (isAnimating || !roundData || !roundStateRef.current) {
+    const gameStateManager = gameStateManagerRef.current;
+    if (isAnimating || !gameStateManager?.currentRoundData || !roundStateRef.current) {
       return;
     }
 
@@ -355,14 +353,14 @@ export const useGameState = () => {
     
     // Every intervalMs milliseconds, run this following logic
     animationIntervalRef.current = setInterval(() => {
-      const currentRoundData = gameStateManagerRef.current?.currentRoundData;
-      if (!currentRoundData || !roundStateRef.current) {
+      const currentGameStateManager = gameStateManagerRef.current;
+      if (!currentGameStateManager?.currentRoundData || !roundStateRef.current) {
         // Stop animation if we've lost round data
         pauseAnimation();
         return;
       }
 
-      const playerTable = currentRoundData.tables.get('player_data');
+      const playerTable = currentGameStateManager.currentRoundData.tables.get('player_data');
       if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
         // Stop animation if we've reached the end
         pauseAnimation();
@@ -374,7 +372,7 @@ export const useGameState = () => {
 
       try {
         // Parse the next tick
-        const nextTickIndex = parseTick(roundStateRef.current, currentTickIndexRef.current, currentRoundData);
+        const nextTickIndex = currentGameStateManager.parseTick(roundStateRef.current, currentTickIndexRef.current);
         currentTickIndexRef.current = nextTickIndex;
         // Force re-render by incrementing version
         setRenderVersion(prev => prev + 1);

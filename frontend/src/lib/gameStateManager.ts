@@ -32,24 +32,24 @@ export class GameStateManager {
       this.currentRoundData.tables.set(datasetName, newTable);
     }
   }
-}
 
-// TODO: move this method into game state manager? or a different class/file
+  /**
+   * Parses the data relating to the current tick and updates the PlayerData's stored in the RoundState in-place.
+   *
+   * Note that it is the caller's job to verify that there are ticks remaining and that the previously processed tick was not the last.
+   * This method may error out if there is no data remaining to process.
+   *
+   * @param roundState - The RoundState that we'll update, which at input time is tracking the data at previous tick.
+   * @param indexToStart - The row index of the table that the tick we'll process starts at(ex: indexToStart = 10 means we start processing at row index 10)
+   * @returns The index that the next tick starts at
+   */
+  parseTick(roundState: RoundState, indexToStart: number): number {
+    if (!this.currentRoundData) {
+      throw new Error("No round data available");
+    }
 
-/**
- * Parses the data relating to the current tick and updates the PlayerData's stored in the RoundState in-place.
- * 
- * Note that it is the caller's job to verify that there are ticks remaining and that the previously processed tick was not the last.
- * This method may error out if there is no data remaining to process.
- * 
- * @param roundState - The RoundState that we'll update, which at input time is tracking the data at previous tick.
- * @param indexToStart - The row index of the table that the tick we'll process starts at(ex: indexToStart = 10 means we start processing at row index 10)
- * @param roundData - The data for the entire round
- * @returns The index that the next tick starts at
- */
-export function parseTick(roundState: RoundState, indexToStart: number, roundData: RoundData): number {
     // Get the player data table from the tables map
-    const playerData = roundData.tables.get('player_data');
+    const playerData = this.currentRoundData.tables.get('player_data');
     if (!playerData) {
         throw Error('No player_data table found in roundData');
     }
@@ -111,4 +111,5 @@ export function parseTick(roundState: RoundState, indexToStart: number, roundDat
 
     // Returning the first index corresponding to the next tick
     return idx;
+  }
 }

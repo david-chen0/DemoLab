@@ -1,8 +1,14 @@
 # DemoLab
 This will only work for desktop(for now), will not work on mobile.
 
-# Tasks that need to be done
-* Add the per-round metadata(REQUIRED BEFORE STREAMING IMPLEMENTATION)
+# Tasks
+* (Done) Add the per-round metadata
+* (Done) Change data communication to use streaming rather than waiting for the entire table to be sent(Done)
+* Add game events and states, which include:
+ * Nades being thrown and popping
+ * Killfeed(decide whether we want to persist it or just have it for a few seconds)
+ * Bomb plant and timer
+* Add UI to show how much of the round is currently loaded(ex: a bar to represent the round, where we have a gray running bar to show how much has been currently loaded in)
 * Scale the image size. Currently, the map size is hardcoded to 1024 x 1024, but this won't work if the browser is too small or won't work well if browser is too large
 * Add more info to and around player icons which include:
  * Player names
@@ -11,14 +17,6 @@ This will only work for desktop(for now), will not work on mobile.
  * Death indicator(ex: an X across the circle or just replacing their circle with X)
  * Flashed indicator
  * Player info indicator on the side(HP bar, KDA, equipment, money, etc)
-* Add game events and states, which include:
- * Nades being thrown and popping
- * Killfeed(decide whether we want to persist it or just have it for a few seconds)
- * Bomb plant and timer
-* Change the table fetching between frontend and backend(get_demo_data API) to use a streaming approach rather than loading everything at once
- * In the current approach, everything is loaded into memory, which is then thrown into an Apache StreamingResponse and the entire ArrayBuffer is loaded in full by the frontend
- * Instead of this, the frontend should only load a bit, start playing the demo for the user, and load more in the background, basically like a video player
- * Can be done by chunking the Pandas DB, paginating the API, etc
 * Organize the CSS and/or use a library(ex: Tailwind)
 * Change the background map canvas to be an offscreen canvas for parallelism purposes
  * Need to create a worker to handle the background map offscreen canvas and it will be managed by communicating with this worker
