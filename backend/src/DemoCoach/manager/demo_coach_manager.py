@@ -1,6 +1,7 @@
 import pandas as pd
 from typing import Optional
 from ...util.demo_file_store import DemoFileStore
+from ...util.logging import logger
 
 
 class DemoCoachManager:
@@ -15,11 +16,9 @@ class DemoCoachManager:
         Gets the data for the input arguments and returns it as a Pandas DF
         """
         if not round_num:
-            print(
-                f"Fetching {dataset} dataset for all rounds for demo file {hash_value}")
+            logger.info(f"Fetching {dataset} dataset for all rounds for demo file {hash_value}")
         else:
-            print(
-                f"Fetching {dataset} dataset for demo file {hash_value} and round number {round_num}")
+            logger.info(f"Fetching {dataset} dataset for demo file {hash_value} and round number {round_num}")
         return DemoFileStore.get_demo_data(dataset, hash_value, round_num)
     
     def get_metadata(self, hash_value: str) -> dict:

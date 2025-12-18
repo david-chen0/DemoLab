@@ -4,6 +4,7 @@ import os
 import pandas as pd
 from typing import Optional
 from ..config.demo_parser_props import DemoParserPlayerProps
+from .logging import logger
 
 
 class DemoFileStore:
@@ -37,15 +38,14 @@ class DemoFileStore:
         """
         Stores the metadata file in JSON format for the game corresponding to the input hash value
         """
-        print(f"Storing metadata for demo with ID {hash_value}")
+        logger.info(f"Storing metadata for demo with ID {hash_value}")
 
         # This will write into the file if it doesn't exist, otherwise throw an error if it already does
         try:
             with open(f"{DemoFileStore.METADATA_DIRECTORY}/{hash_value}.json", "x") as f:
                 json.dump(metadata, f, indent=4)
         except FileExistsError:
-            print(
-                f"File for demo with ID {hash_value} already exists, skipping")
+            logger.info(f"File for demo with ID {hash_value} already exists, skipping")
 
     @staticmethod
     def get_metadata(
@@ -54,7 +54,7 @@ class DemoFileStore:
         """
         Returns the metadata dict for the demo corresponding to the input hash value
         """
-        print(f"Fetching metadata for demo with ID {hash_value}")
+        logger.info(f"Fetching metadata for demo with ID {hash_value}")
 
         with open(f"{DemoFileStore.METADATA_DIRECTORY}/{hash_value}.json", "r") as f:
             return json.load(f)
@@ -99,8 +99,7 @@ class DemoFileStore:
         # Checking if the file has already been stored locally. If so, then we skip
         demo_path = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}"
         if os.path.exists(demo_path):
-            print(
-                f"Demo corresponding to ID {hash_value} already exists, skipping storing.")
+            logger.info(f"Demo corresponding to ID {hash_value} already exists, skipping storing.")
             return
 
         # Create the base demo directory if it doesn't exist, otherwise storing the Parquet file will fail
@@ -160,10 +159,10 @@ class DemoFileStore:
                 event_data_df, f"{path_prefix}/event_data", round_start_tick, round_end_tick, round_num
             )
 
-            print(f"Created the Parquet partition for round {round_num}")
+            logger.info(f"Created the Parquet partition for round {round_num}")
             round_num += 1
 
-        print(f"Finished creating all Parquet files for demo {hash_value}")
+        logger.info(f"Finished creating all Parquet files for demo {hash_value}")
 
     @staticmethod
     def get_demo_data(

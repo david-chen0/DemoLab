@@ -2,13 +2,14 @@ import io
 import os
 import pyarrow as pa
 import pyarrow.ipc as ipc
-from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi import FastAPI, File, HTTPException, UploadFile, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import Dict, List, Optional, Tuple
 from ..DemoCoach.manager.demo_coach_manager import DemoCoachManager
 from ..DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 from ..util.demo_file_store import DemoFileStore
+from ..util.logging import logger
 
 # Constants
 DEMO_COACH_ENDPOINT_PREFIX = "demo_coach"
@@ -50,7 +51,7 @@ async def get_metadata(demo_id: str) -> Dict:
     """
     Gets the metadata for the demo corresponding to the provided ID
     """
-    print(f"get_metadata(demo_id={demo_id})")
+    logger.info(f"get_metadata(demo_id={demo_id})")
     try:
         metadata = demo_coach_manager.get_metadata(demo_id)
         return {MESSAGE_HEADER: f"Found metadata for demo with ID {demo_id}", "metadata": metadata}
@@ -126,7 +127,7 @@ async def stream_datasets(demo_id: str, dataset_names: List[str] = Query(...), r
         demo_id: The ID of the demo to fetch
         round_num: The round to fetch the data for
     """
-    print(f"stream_demo_datasets(dataset_names={dataset_names}, demo_id={demo_id}, round_num={round_num})")
+    logger.info(f"stream_demo_datasets(dataset_names={dataset_names}, demo_id={demo_id}, round_num={round_num})")
     
     boundary = "arrowboundary123" # Used to mark the start of a new part/message
     try:
@@ -234,7 +235,6 @@ DemoIngestor activities
 ====================================================================================
 """
 
-
 @app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo")
 async def ingest_demo(file: UploadFile = File(...)) -> Dict:
     """
@@ -242,7 +242,7 @@ async def ingest_demo(file: UploadFile = File(...)) -> Dict:
 
     The file will first be stored locally before calling this method. This method then passes that filepath into the manager for processing.
     """
-    print(f"ingest_demo(file={file})")
+    logger.info(f"ingest_demo(file={file})")
 
     # Check if filename exists
     if file.filename is None:

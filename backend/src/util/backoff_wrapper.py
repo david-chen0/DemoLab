@@ -1,5 +1,6 @@
 import backoff
 from typing import Callable
+from .logging import logger
 
 class BackoffWrapper:
     """
@@ -18,7 +19,7 @@ class BackoffWrapper:
         Calls the method with the inputs.
         If result_required is set to True, then the method will only be marked successful if something is returned.
         """
-        print(f"Calling {func.__name__} with args {args} and kwargs {kwargs}")
+        logger.info(f"Calling {func.__name__} with args {args} and kwargs {kwargs}")
         result = func(*args, **kwargs)
         return result
     
@@ -29,9 +30,9 @@ class BackoffWrapper:
         Calls the method with the inputs.
         Throws an error if no result is returned. Should be used for write methods that could silently fail.
         """
-        print(f"Calling {func.__name__} with args {args} and kwargs {kwargs}")
+        logger.info(f"Calling {func.__name__} with args {args} and kwargs {kwargs}")
         result = func(*args, **kwargs)
         if result is None:
-            print("A result was expected for the function call, but none was returned")
+            logger.error("A result was expected for the function call, but none was returned")
             raise Exception("A result was expected for the function call, but none was returned")
         return result

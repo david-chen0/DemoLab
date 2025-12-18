@@ -7,6 +7,7 @@ from ...config.demo_parser_events import DemoParserEvents
 from ...config.demo_parser_props import DemoParserPlayerProps
 from ...util.backoff_wrapper import BackoffWrapper
 from ...util.demo_file_store import DemoFileStore
+from ...util.logging import logger
 
 
 class DemoIngestorManager:
@@ -212,12 +213,11 @@ class DemoIngestorManager:
         # If the demo's metadata already exists, we skip ingestion and assume it's already done
         try:
             DemoFileStore.get_metadata(hash_value)
-            print(
+            logger.info(
                 f"Found metadata file for demo with ID {hash_value}, skipping ingestion.")
             return
         except FileNotFoundError:
-            print(
-                f"Did not find existing metadata file for demo with ID {hash_value}, continuing with ingestion.")
+            logger.info(f"Did not find existing metadata file for demo with ID {hash_value}, continuing with ingestion.")
 
         # Parser for the demo file that we are ingesting
         parser = DemoParser(filepath)
@@ -234,7 +234,7 @@ class DemoIngestorManager:
         )
         for event in all_game_events:
             if event not in DemoParserEvents.get_all():
-                print(f"Found a new event that is not in our config: {event}")
+                logger.warning(f"Found a new event that is not in our config: {event}")
         
         # Getting all the event information
         game_events = BackoffWrapper.with_backoff_expect_result(parser.parse_events, self.wanted_game_events)
@@ -253,7 +253,7 @@ class DemoIngestorManager:
         # This means that we need to decrement the match start tick by 1
         # Verify that either this is the case for all games or if there is another fix
         match_start_tick = match_start_df[DemoParserPlayerProps.TICK.value][0] - 1 # There should only be one element
-        print(f"Match start tick: {match_start_tick}")
+        logger.info(f"Match start tick: {match_start_tick}")
         
         # Storing the events that happened after match start in game_event_map
         filtered_events = [(event_name, df[df[DemoParserPlayerProps.TICK.value]
@@ -277,9 +277,9 @@ class DemoIngestorManager:
             parser.parse_ticks,
             wanted_props=self.wanted_player_props,
         ).sort_values(by=DemoParserPlayerProps.TICK.value)
-        print(f"Dataframe fields: {all_player_data_df.columns.tolist()}")
-        print(f"Number of elements in DF: {str(all_player_data_df.size)}")
-        print(f"First two element of DF: {all_player_data_df.head(10)}")
+        logger.info(f"Dataframe fields: {all_player_data_df.columns.tolist()}")
+        logger.info(f"Number of elements in DF: {str(all_player_data_df.size)}")
+        logger.info(f"First two element of DF: {all_player_data_df.head(10)}")
 
         # Separate the ticks by round
         # Each round is defined by a (start_tick, end_tick) tuple, where the end tick is equal to the start tick of next round
@@ -308,7 +308,7 @@ class DemoIngestorManager:
             if start_tick < previous_end_tick:
                 raise AssertionError(f"Found an instance where a round's start tick {start_tick} is less than the previous round's end tick {end_tick}")
             previous_end_tick = end_tick
-        print(f"Rounds by tick: {rounds_by_ticks}")
+        logger.info(f"Rounds by tick: {rounds_by_ticks}")
 
         # Storing the metadata files
         metadata = self._get_match_metadata(

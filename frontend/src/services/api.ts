@@ -103,20 +103,6 @@ export const uploadDemoFile = async (file: File): Promise<{ message: string; dem
   };
 };
 
-const indexOf = (
-  buffer: Uint8Array,
-  pattern: Uint8Array,
-  start: number
-): number => {
-  outer: for (let i = start; i <= buffer.length - pattern.length; i++) {
-    for (let j = 0; j < pattern.length; j++) {
-      if (buffer[i + j] !== pattern[j]) continue outer;
-    }
-    return i;
-  }
-  return -1;
-};
-
 /**
  * Hits the backend stream_demo_datasets API, which provides a byte queue containing Arrow tables for each dataset, ordered by chunks based on ticks.
  * See backend for info on API usage, as it won't be maintained here.
@@ -141,6 +127,20 @@ export const streamData = async (
   roundNumber?: number,
 ): Promise<void> => {
   // TODO: this method will be quite large, figure out how to split it after we get it working first
+
+  const indexOf = (
+    buffer: Uint8Array,
+    pattern: Uint8Array,
+    start: number
+  ): number => {
+    outer: for (let i = start; i <= buffer.length - pattern.length; i++) {
+      for (let j = 0; j < pattern.length; j++) {
+        if (buffer[i + j] !== pattern[j]) continue outer;
+      }
+      return i;
+    }
+    return -1;
+  };
 
   let endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/stream_demo_datasets`;
 

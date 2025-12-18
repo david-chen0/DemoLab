@@ -1,4 +1,5 @@
 import psutil, os
+from .logging import logger
 
 class SystemUtil:
     """
@@ -8,7 +9,7 @@ class SystemUtil:
     def print_memory_usage():
         mem = psutil.virtual_memory()
         used_percent = mem.percent
-        print(f"Memory usage: {used_percent:.2f}%")
+        logger.info(f"Memory usage: {used_percent:.2f}%")
     
     @staticmethod
     def print_process_total_memory_percent():
@@ -20,4 +21,4 @@ class SystemUtil:
         rss = mem_info.rss / (1024 ** 2)  # Resident Set Size in MB
         total = psutil.virtual_memory().total / (1024 ** 2)
         percent = (rss / total) * 100
-        print(f"Process memory usage: {rss:.1f} MB ({percent:.2f}%) of total RAM")
+        logger.info(f"Process memory usage: {rss:.1f} MB ({percent:.2f}%) of total RAM")
