@@ -28,6 +28,7 @@ function App() {
     maxTickNumber,
     isAnimating,
     selectedRound,
+    latestAvailableTick,
     handleGetDemoMetadata,
     initializePlayerDataForRound,
     switchToRound,
@@ -272,6 +273,16 @@ function App() {
                       jumpToTick(targetTick);
                     }}
                   >
+                    {/* Shadow showing how much of the round is ready/available */}
+                    <div
+                      className="progress-shadow"
+                      style={{
+                        width: `${latestAvailableTick > 0 ?
+                          ((latestAvailableTick - demoMetadata.metadata.roundMetadata[selectedRound].roundStart) /
+                          (maxTickNumber - demoMetadata.metadata.roundMetadata[selectedRound].roundStart)) * 100 : 0}%`
+                      }}
+                    />
+                    {/* Current position fill */}
                     <div
                       className="progress-fill"
                       style={{
