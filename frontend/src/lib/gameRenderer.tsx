@@ -64,9 +64,6 @@ export default function GameRenderer({
 }: GameRendererProps) {
   console.log(`Rendering the game state for game ${JSON.stringify(gameMetadata)} at tick ${roundState.tick}`)
 
-  // State to track actual canvas dimensions based on map image
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: 1024, height: 1024 });
-
   // Get responsive game size (this gives us the maximum available space)
   const { width: maxWidth, height: maxHeight } = useResponsiveGameSize({
     minSize: 400,
@@ -75,10 +72,18 @@ export default function GameRenderer({
     padding: 20
   });
 
+  // State to track actual canvas dimensions based on map image
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: maxWidth, height: maxHeight });
+
   // Persistent object to hold the DOM <canvas> element for the map layer
   const mapCanvasRef = useRef<HTMLCanvasElement>(null);
   // Persistent object to hold the DOM <canvas> element for the players layer
   const playerCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Update canvas dimensions when responsive size changes
+  useEffect(() => {
+    setCanvasDimensions({ width: maxWidth, height: maxHeight });
+  }, [maxWidth, maxHeight]);
 
   // Drawing the background map, only drawn when the game changes or size changes
   useEffect(() => {
@@ -149,6 +154,7 @@ export default function GameRenderer({
     if (!playerCanvas) return;
     const ctx = playerCanvas.getContext("2d");
     if (!ctx) return;
+
 
     // Set canvas size to match the map canvas
     playerCanvas.width = canvasDimensions.width;
