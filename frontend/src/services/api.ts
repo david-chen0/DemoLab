@@ -7,6 +7,7 @@ import type {
   RoundMetadata,
   BackendRoundMetadata,
   StreamChunk,
+  DatasetName,
 } from '../interfaces/interfaces';
 
 // API endpoint prefixes
@@ -121,7 +122,7 @@ export const uploadDemoFile = async (file: File): Promise<{ message: string; dem
  * @param roundNumber - Optional round number to fetch the data for. If not specified, entire demo is retrieved
  */
 export const streamData = async (
-  datasetNames: string[],
+  datasetNames: DatasetName[],
   demoId: string,
   onChunk: (chunk: StreamChunk) => void,
   roundNumber?: number,
@@ -145,10 +146,15 @@ export const streamData = async (
   let endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/stream_demo_datasets`;
 
   // Adding query params
-  endpoint += `?demo_id=${encodeURIComponent(demoId)}&dataset_names=${encodeURIComponent(datasetNames.join(","))}`;
+  const params = new URLSearchParams();
+  params.append("demo_id", demoId);
+  datasetNames.forEach(datasetName => {
+    params.append("dataset_names", datasetName);
+  });
   if (roundNumber != null) {
-    endpoint += `&round_num=${roundNumber}`;
+    params.append("round_num", roundNumber.toString());
   }
+  endpoint += `?${params.toString()}`;
 
   // Getting the chunks continually
   const response = await fetch(endpoint, { method: 'GET' });
@@ -233,7 +239,7 @@ export const streamData = async (
 
       // Only process if we have the required headers
       if (headers["x-dataset-id"] && headers["x-window-index"] !== undefined) {
-        const datasetName = headers["x-dataset-id"];
+        const datasetName = headers["x-dataset-id"] as DatasetName;
         const windowIndex = Number(headers["x-window-index"]);
         
         try {

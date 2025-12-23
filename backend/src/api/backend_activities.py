@@ -123,8 +123,8 @@ async def stream_datasets(demo_id: str, dataset_names: List[str] = Query(...), r
     If no round number is specified, then the entire demo's dataset is returned. Note that round_num can only be specified if demo_id is specified.
     
     args:
-        dataset: The dataset to fetch the data for(ex: player_data)
         demo_id: The ID of the demo to fetch
+        dataset_names: The list of datasets to fetch the data for(ex: player_data)
         round_num: The round to fetch the data for
     """
     logger.info(f"stream_demo_datasets(dataset_names={dataset_names}, demo_id={demo_id}, round_num={round_num})")
@@ -225,8 +225,10 @@ async def stream_datasets(demo_id: str, dataset_names: List[str] = Query(...), r
             media_type=f"multipart/mixed; boundary={boundary}",
         )
     except Exception as e:
+        error_str = f"Failed to fetch demo data: {str(e)}"
+        logger.error(error_str)
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch demo data: {str(e)}")
+            status_code=500, detail=error_str)
 
 
 """

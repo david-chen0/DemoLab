@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { GameMetadata, RoundState, PlayerData, ChunkData, DatasetName } from '../interfaces/interfaces';
+import { Dataset } from '../interfaces/interfaces';
 import { getDemoMetadata, streamData } from '../services/api';
 import { ChunkCoordinator } from '../lib/chunkCoordinator';
 import { GameStateManager } from '../lib/GameStateManager';
@@ -158,7 +159,7 @@ export const useGameState = () => {
       setRenderVersion(1);
 
       // Initialize ChunkCoordinator
-      const datasetNames: DatasetName[] = ['player_data']; // Add more datasets as needed
+      const datasetNames: DatasetName[] = [Dataset.PLAYER_DATA, Dataset.EVENT_DATA];
       const coordinator = new ChunkCoordinator(
         datasetNames,
         (chunkIndex, chunkData) => {
@@ -193,10 +194,10 @@ export const useGameState = () => {
     try {
       // Process each dataset in the chunk
       for (const [datasetName, table] of Object.entries(chunkData)) {
-        gameStateManager.appendChunk(datasetName, table);
+        gameStateManager.appendChunk(datasetName as DatasetName, table);
         
         // Update latest available tick if this is player data
-        if (datasetName === 'player_data' && table.numRows > 0) {
+        if (datasetName === Dataset.PLAYER_DATA && table.numRows > 0) {
           const lastRow = table.get(table.numRows - 1);
           if (lastRow) {
             setLatestAvailableTick(lastRow.tick);
@@ -231,7 +232,7 @@ export const useGameState = () => {
       return;
     }
 
-    const playerTable = gameStateManager.currentRoundData.tables.get('player_data');
+    const playerTable = gameStateManager.currentRoundData.tables.get(Dataset.PLAYER_DATA);
     if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
       console.warn('Cannot advance to next tick: no more ticks available');
       return;
@@ -280,7 +281,7 @@ export const useGameState = () => {
       return;
     }
 
-    const playerTable = gameStateManager.currentRoundData.tables.get('player_data');
+    const playerTable = gameStateManager.currentRoundData.tables.get(Dataset.PLAYER_DATA);
     if (!playerTable) {
       console.warn('Cannot jump to tick: no player data available');
       return;
@@ -333,7 +334,7 @@ export const useGameState = () => {
     const roundData = gameStateManagerRef.current?.currentRoundData;
     if (!roundData) return false;
     
-    const playerTable = roundData.tables.get('player_data');
+    const playerTable = roundData.tables.get(Dataset.PLAYER_DATA);
     if (!playerTable) return false;
     
     return currentTickIndexRef.current < playerTable.numRows;
@@ -360,7 +361,7 @@ export const useGameState = () => {
         return;
       }
 
-      const playerTable = currentGameStateManager.currentRoundData.tables.get('player_data');
+      const playerTable = currentGameStateManager.currentRoundData.tables.get(Dataset.PLAYER_DATA);
       if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
         // Stop animation if we've reached the end
         pauseAnimation();

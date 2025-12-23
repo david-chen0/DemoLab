@@ -10,7 +10,6 @@ This will only work for desktop(for now), will not work on mobile.
  * Nades being thrown and popping
  * Killfeed(decide whether we want to persist it or just have it for a few seconds)
  * Bomb plant and timer
-* Scale the image size. Currently, the map size is hardcoded to 1024 x 1024, but this won't work if the browser is too small or won't work well if browser is too large
 * Add more info to and around player icons which include:
  * Player names
  * Weapon/item they are currently holding

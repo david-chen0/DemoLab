@@ -1,5 +1,6 @@
 import { Table } from 'apache-arrow';
-import type { RoundData, RoundState } from '../interfaces/interfaces';
+import type { RoundData, RoundState, DatasetName } from '../interfaces/interfaces';
+import { Dataset } from '../interfaces/interfaces';
 import { FIELD_MAP } from '../config/fieldMappings';
 
 // this class will be responsible for getting the data and for parsing the data too
@@ -17,7 +18,7 @@ export class GameStateManager {
   }
 
   appendChunk(
-    datasetName: string,
+    datasetName: DatasetName,
     tableChunk: Table,
   ) {
     if (!this.currentRoundData) {
@@ -49,7 +50,7 @@ export class GameStateManager {
     }
 
     // Get the player data table from the tables map
-    const playerData = this.currentRoundData.tables.get('player_data');
+    const playerData = this.currentRoundData.tables.get(Dataset.PLAYER_DATA);
     if (!playerData) {
         throw Error('No player_data table found in roundData');
     }

@@ -4,7 +4,12 @@ import { Table } from 'apache-arrow';
 // Data Streaming Interfaces/types
 // =============================================================================
 
-export type DatasetName = string; // Name of the dataset
+export const Dataset = {
+  PLAYER_DATA: 'player_data',
+  EVENT_DATA: 'event_data'
+} as const;
+
+export type DatasetName = typeof Dataset[keyof typeof Dataset]; // Name of the dataset
 export type ChunkIndex = number; // Index of the chunk, which needs to be synchronized across datasets since we chunk by tick
 
 /**
@@ -26,8 +31,8 @@ export type ChunkReadyCallback = (
  * Represents a chunk for a table, which is how we organize the data from the backend to the frontend.
  */
 export type StreamChunk = {
-  datasetName: string;
-  windowIndex: number; 
+  datasetName: DatasetName;
+  windowIndex: number;
   chunkTable: Table;
 }
 

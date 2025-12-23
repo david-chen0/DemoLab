@@ -62,7 +62,7 @@ export default function GameRenderer({
   roundState,
   renderVersion,
 }: GameRendererProps) {
-  console.log(`Rendering the game state for game ${JSON.stringify(gameMetadata)} at tick ${roundState.tick}`)
+  console.log(`Rendering the game state at tick ${roundState.tick}`)
 
   // Get responsive game size (this gives us the maximum available space)
   const { width: maxWidth, height: maxHeight } = useResponsiveGameSize({
@@ -147,8 +147,6 @@ export default function GameRenderer({
 
   // Drawing the players, only drawn when their state changes
   useEffect(() => {
-    console.log("Drawing the player indicators on the map")
-
     // Getting the player canvas element and 2D rendering context
     const playerCanvas = playerCanvasRef.current;
     if (!playerCanvas) return;
