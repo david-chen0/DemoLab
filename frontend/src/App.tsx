@@ -30,7 +30,7 @@ function App() {
     selectedRound,
     latestAvailableTick,
     handleGetDemoMetadata,
-    initializePlayerDataForRound,
+    initializeRoundData,
     switchToRound,
     jumpToTick,
     startAnimation,
@@ -154,7 +154,7 @@ function App() {
         });
 
         // Fetching the demo data for the selected round
-        await initializePlayerDataForRound(gameMetadata, demoId, setError, selectedRound);
+        await initializeRoundData(gameMetadata, demoId, setError, selectedRound);
       } catch (infoError) {
         setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
       }
@@ -286,8 +286,8 @@ function App() {
                     <div
                       className="progress-fill"
                       style={{
-                        width: `${((currentTickNumber - demoMetadata.metadata.roundMetadata[selectedRound].roundStart) /
-                          (maxTickNumber - demoMetadata.metadata.roundMetadata[selectedRound].roundStart)) * 100}%`
+                        width: `${Math.max(0, ((currentTickNumber - demoMetadata.metadata.roundMetadata[selectedRound].roundStart) /
+                          (maxTickNumber - demoMetadata.metadata.roundMetadata[selectedRound].roundStart)) * 100)}%`
                       }}
                     />
                   </div>

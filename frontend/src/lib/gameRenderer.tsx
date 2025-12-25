@@ -133,12 +133,16 @@ export default function GameRenderer({
       mapCanvas.width = canvasWidth;
       mapCanvas.height = canvasHeight;
       
-      // Store dimensions for player canvas
+      // Store dimensions for player canvas and force re-render
       setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
       
       // Clear the canvas, then draw the background scaled to fit
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
       ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+      
+      // Force a layout recalculation to ensure the container updates
+      mapCanvas.style.width = `${canvasWidth}px`;
+      mapCanvas.style.height = `${canvasHeight}px`;
     };
     img.onerror = () => {
       console.error(`Failed to load map image: ${mapImagePath}`);
@@ -157,6 +161,10 @@ export default function GameRenderer({
     // Set canvas size to match the map canvas
     playerCanvas.width = canvasDimensions.width;
     playerCanvas.height = canvasDimensions.height;
+    
+    // Also set the CSS dimensions to match
+    playerCanvas.style.width = `${canvasDimensions.width}px`;
+    playerCanvas.style.height = `${canvasDimensions.height}px`;
 
     // Clears the overlay to make space for the new player states
     ctx.clearRect(0, 0, canvasDimensions.width, canvasDimensions.height);
@@ -205,17 +213,19 @@ export default function GameRenderer({
   // mapCanvas(zIndex = 0) is the static visual background
   // playerCanvas(zIndex = 1) is the player canvas on top with frequent redraws
   return (
-    <div style={{ position: "relative", width: canvasDimensions.width, height: canvasDimensions.height }}>
+    <div style={{
+      position: "relative",
+      width: canvasDimensions.width,
+      height: canvasDimensions.height,
+      minWidth: canvasDimensions.width,
+      minHeight: canvasDimensions.height
+    }}>
       <canvas
         ref={mapCanvasRef}
-        width={canvasDimensions.width}
-        height={canvasDimensions.height}
         style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
       />
       <canvas
         ref={playerCanvasRef}
-        width={canvasDimensions.width}
-        height={canvasDimensions.height}
         style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
       />
     </div>

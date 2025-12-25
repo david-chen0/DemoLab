@@ -3,7 +3,7 @@ import type { GameMetadata, RoundState, PlayerData, ChunkData, DatasetName } fro
 import { Dataset } from '../interfaces/interfaces';
 import { getDemoMetadata, streamData } from '../services/api';
 import { ChunkCoordinator } from '../lib/chunkCoordinator';
-import { GameStateManager } from '../lib/GameStateManager';
+import { GameStateManager } from '../lib/gameStateManager';
 
 /**
  * Custom React hook for managing game state including demo metadata,
@@ -23,8 +23,8 @@ export const useGameState = () => {
   const [selectedRound, setSelectedRound] = useState<number>(1);
   // Stores current round state - using useRef since roundState is edited in-place and needs to be edited constantly. Re-renders are controlled by renderVersion
   const roundStateRef = useRef<RoundState | null>(null);
-  // Tracks the current tick index for navigation - using useRef for synchronous updates
-  const currentTickIndexRef = useRef<number>(0);
+  // Tracks the current tick index for each dataset/table
+  const currentTickIndexMap = useRef<Map<DatasetName, number>>(new Map());
   // Stores the first and last tick of the round for efficient validation
   const [firstTick, setFirstTick] = useState<number>(-1);
   const [lastTick, setLastTick] = useState<number>(-1);
@@ -106,12 +106,14 @@ export const useGameState = () => {
    * @param setError - Method to set the error, provided by the caller
    * @param roundNum - Number of the round we are initializing the data for
    */
-  const initializePlayerDataForRound = async (
+  const initializeRoundData = async (
     metadata: GameMetadata,
     demoId: string,
     setError: (err: string) => void,
     roundNum: number = 1
   ) => {
+    console.log(`Initializing round data for demo ${demoId} and round number ${roundNum}`);
+
     // Stop any running animation when switching rounds
     pauseAnimation();
     
@@ -119,12 +121,20 @@ export const useGameState = () => {
     setSelectedRound(roundNum);
     
     console.log(`Starting streaming for demo ${demoId} and round ${roundNum}`);
+    const datasetNames: DatasetName[] = [Dataset.PLAYER_DATA, Dataset.EVENT_DATA];
     try {
       // Initialize GameStateManager for this round
       const gameStateManager = new GameStateManager();
       gameStateManager.changeRound(roundNum);
       gameStateManagerRef.current = gameStateManager;
 
+      // Set the indexes for the datasets to be 0, since we are parsing from the first row
+      if (currentTickIndexMap.current == null) {
+        currentTickIndexMap.current = new Map();
+      }
+      for (const datasetName of datasetNames) {
+        currentTickIndexMap.current.set(datasetName, 0);
+      }
 
       // Map from player steamId to their player data
       const playerMap = new Map<string, PlayerData>();
@@ -139,27 +149,26 @@ export const useGameState = () => {
         console.warn(`Found ${playerMap.size} players, which is different from the expected 10.`);
       }
 
-      // This round state is how we'll display the info
-      const roundState: RoundState = {
-        playerMap: playerMap,
-        tick: -1,
-      };
-      roundStateRef.current = roundState;
-
-      // Set tick range from round metadata
+      // Set tick range from round metadata first
       const roundMetadata = metadata.roundMetadata[roundNum];
       if (roundMetadata) {
         setFirstTick(roundMetadata.roundStart);
         setLastTick(roundMetadata.roundEnd);
       }
 
+      // This round state is how we'll display the info
+      // Initialize with -1, will be set to actual first tick when first chunk arrives
+      const roundState: RoundState = {
+        playerMap: playerMap,
+        tick: -1,
+      };
+      roundStateRef.current = roundState;
+
       // Reset streaming state
-      currentTickIndexRef.current = 0;
       setLatestAvailableTick(-1);
       setRenderVersion(1);
 
       // Initialize ChunkCoordinator
-      const datasetNames: DatasetName[] = [Dataset.PLAYER_DATA, Dataset.EVENT_DATA];
       const coordinator = new ChunkCoordinator(
         datasetNames,
         (chunkIndex, chunkData) => {
@@ -205,13 +214,21 @@ export const useGameState = () => {
         }
       }
 
-      // If this is the first chunk and we haven't started yet, parse the first tick
-      if (chunkIndex === 0 && roundStateRef.current && roundStateRef.current.tick === -1) {
-        if (gameStateManager.currentRoundData) {
+      // If this is the first chunk, parse the first available tick to populate initial player data
+      if (chunkIndex === 0 && roundStateRef.current && gameStateManager.currentRoundData) {
+        const playerTable = gameStateManager.currentRoundData.tables.get(Dataset.PLAYER_DATA);
+        if (playerTable && playerTable.numRows > 0) {
           try {
-            const nextTickIndex = gameStateManager.parseTick(roundStateRef.current, 0);
-            currentTickIndexRef.current = nextTickIndex;
-            setRenderVersion(prev => prev + 1);
+            // Get the first tick from the actual data
+            const firstRow = playerTable.get(0);
+            if (firstRow) {
+              const actualFirstTick = firstRow.tick;
+              // Update the round state to start at the actual first tick
+              roundStateRef.current.tick = actualFirstTick;
+              // Parse the first tick to populate initial player data
+              gameStateManager.parseTick(roundStateRef.current, currentTickIndexMap.current, actualFirstTick);
+              setRenderVersion(prev => prev + 1);
+            }
           } catch (error) {
             console.warn('Could not parse first tick yet, waiting for more data:', error);
           }
@@ -233,15 +250,19 @@ export const useGameState = () => {
     }
 
     const playerTable = gameStateManager.currentRoundData.tables.get(Dataset.PLAYER_DATA);
-    if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
+    const currentPlayerTableIndex = currentTickIndexMap.current.get(Dataset.PLAYER_DATA);
+    if (currentPlayerTableIndex == undefined) {
+      console.error(`Current player table index is undefined`);
+      return;
+    }
+    if (!playerTable || currentPlayerTableIndex >= playerTable.numRows) {
       console.warn('Cannot advance to next tick: no more ticks available');
       return;
     }
 
     try {
       // Parse the next tick
-      const nextTickIndex = gameStateManager.parseTick(roundStateRef.current, currentTickIndexRef.current);
-      currentTickIndexRef.current = nextTickIndex;
+      gameStateManager.parseTick(roundStateRef.current, currentTickIndexMap.current, roundStateRef.current.tick + 1);
       // Force re-render by incrementing version
       setRenderVersion(prev => prev + 1);
 
@@ -281,48 +302,32 @@ export const useGameState = () => {
       return;
     }
 
-    const playerTable = gameStateManager.currentRoundData.tables.get(Dataset.PLAYER_DATA);
-    if (!playerTable) {
-      console.warn('Cannot jump to tick: no player data available');
-      return;
-    }
-
-    // Binary search for the index of a row that corresponds to the tick
-    let firstPtr = 0;
-    let lastPtr = playerTable.numRows - 1;
-    let firstTickIndex: number;
-    while (true) {
-      const middlePtr = Math.floor((firstPtr + lastPtr) / 2);
-      const currentTick = playerTable.get(middlePtr)!.tick;
-      if (currentTick == targetTick) {
-        // We found an index that has the same tick value
-        firstTickIndex = middlePtr;
-        break;
-      } else if (currentTick < targetTick) {
-        firstPtr = middlePtr;
-      } else {
-        lastPtr = middlePtr;
+    const targetDatasets = [Dataset.PLAYER_DATA, Dataset.EVENT_DATA];
+    for (const targetDataset of targetDatasets) {
+      const table = gameStateManager.currentRoundData.tables.get(targetDataset);
+      if (!table) {
+        console.warn(`Cannot jump to tick ${targetTick}, as there is no data available for the table ${table}`);
+        return;
       }
-    }
-
-    // firstTickIndex is now in the tick, but is not guaranteed to be the first row
-    // corresponding to that tick
-    firstTickIndex -= 1;
-    while (firstTickIndex > 0) {
-      const currentTick = playerTable.get(firstTickIndex)!.tick;
-      if (currentTick != targetTick) {
-        // Reached the previous tick
-        break;
+      
+      // Binary search for the index of the first row that is >= to that tick
+      let firstPtr = 0;
+      let lastPtr = table.numRows - 1;
+      while (firstPtr < lastPtr) {
+        const middlePtr = Math.floor((firstPtr + lastPtr) / 2);
+        const currentTick = table.get(middlePtr)!.tick;
+        if (currentTick < targetTick) {
+          firstPtr = middlePtr + 1;
+        } else {
+          lastPtr = middlePtr;
+        }
       }
-
-      firstTickIndex -= 1;
+      currentTickIndexMap.current.set(targetDataset, firstPtr);
     }
-    firstTickIndex += 1; // Before this, we were at the last row of the previous tick, so we need to increment by one
 
     // Parsing the current tick, which we now have the index for
-    const nextTickIndex = gameStateManager.parseTick(roundStateRef.current, firstTickIndex);
+    gameStateManager.parseTick(roundStateRef.current, currentTickIndexMap.current, targetTick);
     console.log(`Jumped to tick: ${roundStateRef.current.tick}`);
-    currentTickIndexRef.current = nextTickIndex;
     // Force re-render by incrementing version, as roundState is being edited in-place so it doesn't trigger a re-render
     setRenderVersion(prev => prev + 1);
   };
@@ -333,11 +338,11 @@ export const useGameState = () => {
   const hasNextTick = (): boolean => {
     const roundData = gameStateManagerRef.current?.currentRoundData;
     if (!roundData) return false;
-    
-    const playerTable = roundData.tables.get(Dataset.PLAYER_DATA);
-    if (!playerTable) return false;
-    
-    return currentTickIndexRef.current < playerTable.numRows;
+
+    const roundMetadata = demoMetadata?.metadata.roundMetadata[selectedRound];
+    if (!roundMetadata) return false;
+    if (!roundStateRef.current) return false;
+    return roundStateRef.current.tick < roundMetadata.roundEnd;
   };
 
   /**
@@ -361,8 +366,7 @@ export const useGameState = () => {
         return;
       }
 
-      const playerTable = currentGameStateManager.currentRoundData.tables.get(Dataset.PLAYER_DATA);
-      if (!playerTable || currentTickIndexRef.current >= playerTable.numRows) {
+      if (!hasNextTick()) {
         // Stop animation if we've reached the end
         pauseAnimation();
         return;
@@ -370,11 +374,9 @@ export const useGameState = () => {
 
       // Now using useRef for synchronous updates - this fixes the async update bug
       // where currentTickIndex would never actually get updated in time for the next iteration
-
       try {
         // Parse the next tick
-        const nextTickIndex = currentGameStateManager.parseTick(roundStateRef.current, currentTickIndexRef.current);
-        currentTickIndexRef.current = nextTickIndex;
+        currentGameStateManager.parseTick(roundStateRef.current, currentTickIndexMap.current, roundStateRef.current.tick + 1);
         // Force re-render by incrementing version
         setRenderVersion(prev => prev + 1);
       } catch (error) {
@@ -416,7 +418,7 @@ export const useGameState = () => {
     gameStateManagerRef.current = null;
     chunkCoordinatorRef.current = null;
     roundStateRef.current = null;
-    currentTickIndexRef.current = 0;
+    currentTickIndexMap.current = new Map();
     setFirstTick(-1);
     setLastTick(-1);
     setLatestAvailableTick(-1);
@@ -440,7 +442,7 @@ export const useGameState = () => {
     }
     
     try {
-      await initializePlayerDataForRound(metadata, demoId, setError, roundNum);
+      await initializeRoundData(metadata, demoId, setError, roundNum);
     } catch (error) {
       setError(`Failed to switch to round ${roundNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -458,7 +460,7 @@ export const useGameState = () => {
     selectedRound,
     setSelectedRound,
     handleGetDemoMetadata,
-    initializePlayerDataForRound,
+    initializeRoundData,
     switchToRound,
     goToNextTick,
     jumpToTick,
