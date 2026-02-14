@@ -9,7 +9,7 @@ This will only work for desktop(for now), will not work on mobile.
 * (Done) Add all the active duty maps in
  * Every map except Nuke was added
 * Fix the bug where there are a lot of rounds, which causes the round bar to be really long and in turn the map to be really large. Should instead have set size for everything and have horizontal scrolling for the round bar
-* Fix bug where changing to a different demo doesn't reset the round to 1
+* (Done) Fix bug where changing to a different demo doesn't reset the round to 1
 * Some more vertical maps have a lot of whitespace on the sides, need to fix this somehow(either delete whitespace on sides or stretch it wider or flip it 90degrees)
 * Add game events and states, which include:
  * Nades being thrown and popping

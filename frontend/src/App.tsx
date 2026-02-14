@@ -102,6 +102,9 @@ function App() {
         return
       }
       
+      // Reset demo data when a new file is selected to clear previous demo state
+      resetDemoData();
+      
       setSelectedFile(file);
       setMessage('');
       setError('');
