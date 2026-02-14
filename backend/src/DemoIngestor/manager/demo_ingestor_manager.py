@@ -81,6 +81,7 @@ class DemoIngestorManager:
         DemoParserEvents.ITEM_PICKUP,
         DemoParserEvents.PLAYER_DEATH,
         DemoParserEvents.PLAYER_GIVEN_C4,
+        DemoParserEvents.ROUND_ANNOUNCE_MATCH_START,
         DemoParserEvents.ROUND_END,
         DemoParserEvents.ROUND_START,
         DemoParserEvents.SMOKEGRENADE_DETONATE,
@@ -232,8 +233,9 @@ class DemoIngestorManager:
         all_game_events = BackoffWrapper.with_backoff_expect_result(
             parser.list_game_events
         )
+        logger.info(f"All game events found: {all_game_events}")
         for event in all_game_events:
-            if event not in DemoParserEvents.get_all():
+            if event not in DemoParserEvents.get_all(): # TODO: This is checking if it exists in a list right now, should change to set instead
                 logger.warning(f"Found a new event that is not in our config: {event}")
         
         # Getting all the event information
@@ -241,19 +243,19 @@ class DemoIngestorManager:
         
         # Getting the tick that the match starts at
         match_start_df = None
+        possible_start_events = {DemoParserEvents.BEGIN_NEW_MATCH.value, DemoParserEvents.ROUND_ANNOUNCE_MATCH_START.value}
         for i, (event_name, df) in enumerate(game_events):
-            if event_name == DemoParserEvents.BEGIN_NEW_MATCH.value:
+            if event_name in possible_start_events:
                 match_start_df = df
                 # Removing the match start event, since we only need that for backend processes and don't want to send it to the frontend
                 game_events.pop(i)
                 break
         if match_start_df is None:
             raise AssertionError("Match start tick was not found")
-        # TODO: For some reason, with the current code, the first round start is at 1016 but the match start tick is at 1017
-        # This means that we need to decrement the match start tick by 1
-        # Verify that either this is the case for all games or if there is another fix
-        match_start_tick = match_start_df[DemoParserPlayerProps.TICK.value][0] - 1 # There should only be one element
-        logger.info(f"Match start tick: {match_start_tick}")
+        # TODO: There are many different ways match start is handled, so we just hardcode it to 0 for now and handle any differences below after fetching the ticks.
+        # Different clients handle starting and ending games differently, so it's difficult to make a case that works for all
+        # match_start_tick = match_start_df[DemoParserPlayerProps.TICK.value][0] - 1 # There should only be one element
+        match_start_tick = 0
         
         # Storing the events that happened after match start in game_event_map
         filtered_events = [(event_name, df[df[DemoParserPlayerProps.TICK.value]
@@ -292,13 +294,25 @@ class DemoIngestorManager:
         ])
         round_start_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_START.value]
         round_end_ticks = round_start_and_end_ticks[DemoParserEvents.ROUND_END.value]
-        # Number of round starting and ending ticks must be the same
-        if len(round_start_ticks) != len(round_end_ticks):
-            raise AssertionError(
-                f"There are {len(round_start_ticks)} round starting ticks but {len(round_end_ticks)} round ending ticks, the two need to match.\n" +
-                f"Values for these: Round starting ticks: {round_start_ticks}\n" +
-                f"Round ending ticks: {round_end_ticks}\n"
-            )
+        # Number of round starting and ending ticks must be the same. If they are different, we need to adjust it, since there can be edge cases(ex: warmup)
+        num_round_diff = len(round_start_ticks) - len(round_end_ticks)
+        if num_round_diff != 0:
+            if abs(num_round_diff) > 1: # We allow at most one diff
+                raise AssertionError(
+                    f"There are {len(round_start_ticks)} round starting ticks but {len(round_end_ticks)} round ending ticks, the two need to match.\n" +
+                    f"Values for these: Round starting ticks: {round_start_ticks}\n" +
+                    f"Round ending ticks: {round_end_ticks}\n"
+                )
+                
+            # TODO: Sanity check these, as there could be other edge cases
+            # It's difficult to just have one condition that works for all since different clients have different ways of starting and ending matches
+            if num_round_diff > 0: # More starting than ending
+                logger.info(f"Found an extra round starting tick, popping it off from the front")
+                round_start_ticks = round_start_ticks[1:]
+            else:
+                logger.info(f"Found an extra round ending tick, popping it off from the front")
+                round_end_ticks = round_end_ticks[1:]
+                
         rounds_by_ticks = list(zip(round_start_ticks, round_end_ticks))
         # Each round's starting tick must be less than that round's ending tick and greater than the previous round's ending tick
         previous_end_tick = -1

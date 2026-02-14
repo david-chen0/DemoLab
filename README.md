@@ -6,6 +6,11 @@ This will only work for desktop(for now), will not work on mobile.
 * (Done) Change data communication to use streaming rather than waiting for the entire table to be sent(Done)
 * (Done) Scale the UI elements by how big the user's window is
 * (Done) Add UI to show how much of the round is currently loaded(ex: a bar to represent the round, where we have a gray running bar to show how much has been currently loaded in)
+* (Done) Add all the active duty maps in
+ * Every map except Nuke was added
+* Fix the bug where there are a lot of rounds, which causes the round bar to be really long and in turn the map to be really large. Should instead have set size for everything and have horizontal scrolling for the round bar
+* Fix bug where changing to a different demo doesn't reset the round to 1
+* Some more vertical maps have a lot of whitespace on the sides, need to fix this somehow(either delete whitespace on sides or stretch it wider or flip it 90degrees)
 * Add game events and states, which include:
  * Nades being thrown and popping
  * Killfeed(decide whether we want to persist it or just have it for a few seconds)
@@ -20,6 +25,7 @@ This will only work for desktop(for now), will not work on mobile.
 * Organize the CSS and/or use a library(ex: Tailwind)
 * Change the background map canvas to be an offscreen canvas for parallelism purposes
  * Need to create a worker to handle the background map offscreen canvas and it will be managed by communicating with this worker
+* Add Z-coordinate support, and then add in Nuke(since this map requires Z-coordinate support)
 
 
 ## personal notes:

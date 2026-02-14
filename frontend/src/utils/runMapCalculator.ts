@@ -10,23 +10,24 @@ import {
  * Standalone script to calculate map coordinates
  * 
  * To run this script:
- * 1. Navigate to the frontend directory: cd frontend
- * 2. Run: npx tsx src/utils/runMapCalculator.ts
+ * 1. From the root dir, run: npx tsx frontend/src/utils/runMapCalculator.ts
  * 
  * Game coordinates can be retrieved using `getpos` in the in-game console
  * Pixel position can be retrieved using websites like: https://pixspy.com/
+ * 
+ * If the image background isn't fully transparent, will need some editing either with Windows software or Photoshop.
  */
 const inputData: MapCalculationInput = {
   // First reference point - replace with your measurements
   point1: {
-    gamePosition: { x: 1051.033813, y: 3059.971924 },  // Replace with known game coordinates
-    pixelPosition: { x: 792, y: 38 }     // Replace with measured pixel coordinates
+    gamePosition: { x: -3550.811035, y: -2515.407471 },  // Replace with known game coordinates
+    pixelPosition: { x: 244, y: 827 }     // Replace with measured pixel coordinates
   },
   
   // Second reference point - should be far from point1
   point2: {
-    gamePosition: { x: -2203.818604, y: -1031.968750 },   // Replace with known game coordinates  
-    pixelPosition: { x: 58, y: 968 }     // Replace with measured pixel coordinates
+    gamePosition: { x: -158.914795, y: 217.156372 },   // Replace with known game coordinates  
+    pixelPosition: { x: 892, y: 303 }     // Replace with measured pixel coordinates
   },
   
   // Your map image dimensions
@@ -37,7 +38,7 @@ const inputData: MapCalculationInput = {
 };
 
 // Map name for the output
-const mapName = 'de_dust2'; // Change this to your map name
+const mapName = 'de_inferno'; // Change this to your map name
 
 console.log('🗺️  Map Coordinate Calculator');
 console.log('================================');
