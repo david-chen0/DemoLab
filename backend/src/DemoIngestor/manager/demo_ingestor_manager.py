@@ -235,7 +235,8 @@ class DemoIngestorManager:
         )
         logger.info(f"All game events found: {all_game_events}")
         for event in all_game_events:
-            if event not in DemoParserEvents.get_all(): # TODO: This is checking if it exists in a list right now, should change to set instead
+            all_current_events = set(DemoParserEvents.get_all())
+            if event not in all_current_events:
                 logger.warning(f"Found a new event that is not in our config: {event}")
         
         # Getting all the event information
