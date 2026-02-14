@@ -120,6 +120,10 @@ export class GameStateManager {
     if (idx >= eventData.numRows) {
       throw Error(`Cannot parse tick: index ${idx} is beyond available event data (${eventData.numRows} rows)`);
     }
+    
+    // We need to handle event jumps differently from player jumps, as events that happen a long time ago could still last(ex: molotovs)
+    const continuousTickParse = currentTick == roundState.tick + 1;
+    console.log(`Continuous parse? ${continuousTickParse}`); // TODO: This is just here to so the compiler doesn't complain about continuousTickParse not being used yet, remove once not needed
 
     // TODO: Implement the event data parsing
     // For now, this will simply increment the idx so that everything else is functional
