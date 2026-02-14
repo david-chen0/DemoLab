@@ -13,6 +13,9 @@ pyarrow
 autopep8
 pylint
 
+# Loading environment variables
+python-dotenv
+
 # Tracking system info(memory usage, CPU waits, etc)
 # TODO: Remove this once we move the computing to a cloud service
 psutil

@@ -1,4 +1,4 @@
-import io
+from dotenv import load_dotenv
 import os
 import pyarrow as pa
 import pyarrow.ipc as ipc
@@ -10,6 +10,10 @@ from ..DemoCoach.manager.demo_coach_manager import DemoCoachManager
 from ..DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 from ..util.demo_file_store import DemoFileStore
 from ..util.logging import logger
+
+# Environment variables
+load_dotenv()
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(',')
 
 # Constants
 DEMO_COACH_ENDPOINT_PREFIX = "demo_coach"
@@ -28,7 +32,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     # React dev server
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

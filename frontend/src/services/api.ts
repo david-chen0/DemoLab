@@ -11,7 +11,7 @@ import type {
 } from '../interfaces/interfaces';
 
 // API endpoint prefixes
-export const ENDPOINT_PREFIX = "http://localhost:8000";
+export const ENDPOINT_PREFIX = import.meta.env.VITE_API_URL;
 export const DEMO_COACH_ENDPOINT_PREFIX = "demo_coach";
 export const DEMO_INGESTOR_ENDPOINT_PREFIX = "demo_ingestor";
 
