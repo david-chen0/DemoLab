@@ -118,7 +118,7 @@ export default function GameRenderer({
           canvasWidth = canvasHeight * imageAspectRatio;
         }
       } else {
-        // Image is taller than wide or square
+        // Image is taller than wide
         canvasHeight = Math.min(maxHeight, img.height);
         canvasWidth = canvasHeight * imageAspectRatio;
         

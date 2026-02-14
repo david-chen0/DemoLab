@@ -89,8 +89,9 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 100%;
+  max-width: 80%;
   position: relative;
+  box-sizing: border-box;
   /* Let GameRenderer determine natural height and width */
 }
 
@@ -244,6 +245,12 @@
   border-radius: 8px;
   position: relative;
   z-index: 5; /* Lower than game controls */
+  height: 120px; /* Fixed height */
+  display: flex;
+  flex-direction: column;
+  width: 100%; /* Ensure it takes full width of parent */
+  max-width: 100%; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .round-selector h4 {
@@ -252,12 +259,15 @@
   color: #007bff;
   font-size: 1.1em;
   text-align: center;
+  flex-shrink: 0; /* Prevent title from shrinking */
 }
 
 .round-selector-container {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 1; /* Take remaining space */
+  min-height: 0; /* Allow container to shrink */
 }
 
 .scroll-btn {
@@ -296,6 +306,10 @@
   /* Hide scrollbar but keep functionality */
   scrollbar-width: none;
   -ms-overflow-style: none;
+  height: 50px; /* Fixed height for the scrollable area */
+  display: flex;
+  align-items: center;
+  max-width: 100%; /* Ensure it doesn't exceed container width */
 }
 
 .round-buttons-container::-webkit-scrollbar {
@@ -306,7 +320,10 @@
   display: flex;
   gap: 0.5rem;
   padding: 0.25rem 0;
-  min-width: min-content;
+  min-width: max-content; /* Changed from min-content to max-content to force scrolling */
+  height: 100%;
+  align-items: center;
+  white-space: nowrap; /* Prevent wrapping */
 }
 
 .round-btn {
@@ -373,8 +390,16 @@
     font-size: 18px;
   }
   
+  .round-selector {
+    height: 100px; /* Slightly smaller on mobile */
+  }
+  
   .round-selector-container {
     gap: 0.25rem;
+  }
+  
+  .round-buttons-container {
+    height: 40px; /* Smaller height for mobile */
   }
   
   .scroll-btn {
@@ -411,6 +436,14 @@
   
   .progress-bar {
     height: 24px;
+  }
+  
+  .round-selector {
+    height: 90px; /* Even smaller on very small screens */
+  }
+  
+  .round-buttons-container {
+    height: 35px; /* Smaller height for very small screens */
   }
 }
 

@@ -35,9 +35,22 @@ export function useResponsiveGameSize(options: UseResponsiveGameSizeOptions = {}
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // Account for header, upload section, round selector, and padding
-    // Estimate space taken by header (~100px), upload section (~150px), round selector (~100px), and padding
-    const availableHeight = viewportHeight - 350 - padding * 2;
+    // Account for header, upload section, round selector (now fixed), and padding
+    // Fixed space taken by:
+    // - Header (~100px)
+    // - Upload section (~150px)
+    // - Round selector (120px on desktop, 100px on tablet, 90px on mobile)
+    // - Game header (~80px)
+    // - Margins and padding (~50px)
+    let roundSelectorHeight = 120; // Default desktop height
+    if (viewportWidth <= 480) {
+      roundSelectorHeight = 90;
+    } else if (viewportWidth <= 768) {
+      roundSelectorHeight = 100;
+    }
+    
+    const fixedUIHeight = 100 + 150 + roundSelectorHeight + 80 + 50;
+    const availableHeight = viewportHeight - fixedUIHeight - padding * 2;
     
     // Single column layout: use most of the width minus padding
     const availableWidth = viewportWidth - padding * 4;
