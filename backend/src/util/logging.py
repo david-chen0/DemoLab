@@ -1,8 +1,10 @@
 import logging
 import json
+import os
+import sys
 from datetime import datetime, timezone
 
-LOG_FILE = "application.log" # TODO: MAKE A COMMON PLACE FOR THE LOGS, FOR BOTH FRONTEND AND BACKEND
+LOG_FILE = "application.log" # File we log to for local development
 
 class JsonFormatter(logging.Formatter):
     """
@@ -20,10 +22,15 @@ class JsonFormatter(logging.Formatter):
         }
         return json.dumps(log)
 
-handler = logging.FileHandler(LOG_FILE, mode="a")
+# Log to local file for local dev, otherwise log to stdout for Render website
+if os.getenv("RENDER"): # Auto set to True by Render
+    handler = logging.StreamHandler(sys.stdout)
+else:
+    handler = logging.FileHandler(LOG_FILE, mode="a")
 handler.setFormatter(JsonFormatter())
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+logger.handlers.clear() # Prevents duplicate logs
 logger.addHandler(handler)
 logger.propagate = False
