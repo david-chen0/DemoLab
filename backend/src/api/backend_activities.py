@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 import os
+import time
 import pyarrow as pa
 import pyarrow.ipc as ipc
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query, Request
@@ -10,6 +11,7 @@ from ..DemoCoach.manager.demo_coach_manager import DemoCoachManager
 from ..DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
 from ..util.demo_file_store import DemoFileStore
 from ..util.logging import logger
+from ..util.memory_monitor import memory_monitor
 
 # Environment variables
 load_dotenv()
@@ -21,6 +23,9 @@ DEMO_INGESTOR_ENDPOINT_PREFIX = "demo_ingestor"
 UPLOADED_DEMOS_DIR = "uploads"
 MESSAGE_HEADER = "message"
 ERROR_HEADER = "error"
+
+# Development/debug constants
+TRACK_MEMORY = False # Set to true to track the memory usage
 
 # Managers
 demo_coach_manager = DemoCoachManager()
@@ -254,18 +259,54 @@ async def ingest_demo(file: UploadFile = File(...)) -> Dict:
     if file.filename is None:
         return {"error": "File must have a filename"}
 
-    # Save the uploaded file to the uploads directory
-    file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
+    # Start memory monitoring session
+    if TRACK_MEMORY:
+        session_id = f"demo_ingestion_{file.filename}_{int(time.time())}"
+        memory_monitor.start_session(session_id)
+        memory_monitor.take_snapshot("Backend_start")
 
-    with open(file_location, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
-
-    # Process the file
     try:
+        # Save the uploaded file to the uploads directory
+        file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("Before_file_write")
+
+        with open(file_location, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("After_file_write")
+
+        # Process the file
         # Hash value is used to uniquely identify the file
         file_hash_value = DemoFileStore.get_file_hash(file_location)
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("Before_demo_processing")
+        
         demo_ingestor_manager.ingest_demo(file_location, file_hash_value)
-        return {MESSAGE_HEADER: "Demo ingested successfully", "fileName": file.filename, "demoId": file_hash_value}
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("After_demo_processing")
+        
+        # Deleting the file from the uploads directory
+        os.remove(file_location)
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("After deleting uploaded file")
+        
+        if TRACK_MEMORY:
+            memory_summary = memory_monitor.get_memory_summary() # Get memory summary
+        
+        return {
+            MESSAGE_HEADER: "Demo ingested successfully",
+            "fileName": file.filename,
+            "demoId": file_hash_value
+        }
     except Exception as e:
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("Error_occurred")
+            memory_summary = memory_monitor.get_memory_summary()
+            logger.error(f"Demo ingestion failed with memory usage: {memory_summary}")
         return {ERROR_HEADER: f"Failed to ingest demo: {str(e)}"}
+    finally:
+        if TRACK_MEMORY:
+            memory_monitor.clear_session()
