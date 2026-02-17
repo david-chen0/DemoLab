@@ -10,6 +10,8 @@ This will only work for desktop(for now), will not work on mobile.
   * Every map except Nuke was added
 * (Done) Fix the bug where there are a lot of rounds, which causes the round bar to be really long and in turn the map to be really large. Should instead have set size for everything and have horizontal scrolling for the round bar
 * (Done) Fix bug where changing to a different demo doesn't reset the round to 1
+* Move all this dev info away from the README and make the README actually useful
+* Store the output(Parquet files) in actual cloud storage(GCP cloud storage). Also might be helpful to rethink how we come up with the ID, since the current ID requires reading the entire file to hash
 * Put a loading animation when ingesting the demo. Especially important for the free backend service since it has a cold start of 30s-1m
 * Put an option to see a default demo(ex: Spirit v Faze Dust2 Shanghai). Also include the HLTV link to this
 * Some more vertical maps have a lot of whitespace on the sides, need to fix this somehow(either delete whitespace on sides or stretch it wider or flip it 90degrees)
@@ -49,6 +51,8 @@ Required environment variables:
 ALLOWED_ORIGINS: Required for CORS allowlisting. List of strings separated by comma, ex: http://localhost:5173,http://localhost:5174
 ```
 
+Backend will(planned) be hosted with GCP Run
+
 ### Frontend:
 Everything is installed in the `frontend` dir
 
@@ -60,3 +64,5 @@ Required environment variables:
 ```
 VITE_API_URL: URL for calling our backend APIs, ex: http://localhost:8000
 ```
+
+Frontend will(planned) be hosted with Cloudflare Pages
