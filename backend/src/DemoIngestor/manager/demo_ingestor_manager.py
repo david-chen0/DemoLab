@@ -192,7 +192,7 @@ class DemoIngestorManager:
 
         return metadata
 
-    def ingest_demo(self, filepath: str, hash_value: Optional[str] = None):
+    def ingest_demo(self, demo_id: str, filepath: str):
         """
         This method will ingest and process the raw demo file.
 
@@ -207,18 +207,15 @@ class DemoIngestorManager:
 
             Metadata on the game is also stored locally in the metadata directory as a JSON under the game's hash value name
         """
-        # Getting the hash of the file, which is where we'll store it under later
-        if hash_value is None:
-            hash_value = DemoFileStore.get_file_hash(filepath)
-
         # If the demo's metadata already exists, we skip ingestion and assume it's already done
+        # TODO: Remove this check once we've validated that the frontend hash value generation is stable
         try:
-            DemoFileStore.get_metadata(hash_value)
+            DemoFileStore.get_metadata(demo_id)
             logger.info(
-                f"Found metadata file for demo with ID {hash_value}, skipping ingestion.")
+                f"Found metadata file for demo with ID {demo_id}, skipping ingestion.")
             return
         except FileNotFoundError:
-            logger.info(f"Did not find existing metadata file for demo with ID {hash_value}, continuing with ingestion.")
+            logger.info(f"Did not find existing metadata file for demo with ID {demo_id}, continuing with ingestion.")
 
         # Parser for the demo file that we are ingesting
         parser = DemoParser(filepath)
@@ -282,7 +279,7 @@ class DemoIngestorManager:
         ).sort_values(by=DemoParserPlayerProps.TICK.value)
         logger.info(f"Dataframe fields: {all_player_data_df.columns.tolist()}")
         logger.info(f"Number of elements in DF: {str(all_player_data_df.size)}")
-        logger.info(f"First two element of DF: {all_player_data_df.head(10)}")
+        logger.info(f"First ten element of DF: {all_player_data_df.head(10)}")
 
         # Separate the ticks by round
         # Each round is defined by a (start_tick, end_tick) tuple, where the end tick is equal to the start tick of next round
@@ -327,15 +324,17 @@ class DemoIngestorManager:
 
         # Storing the metadata files
         metadata = self._get_match_metadata(
-            hash_value, filepath, parser, rounds_by_ticks)
-        DemoFileStore.store_metadata_file(hash_value, metadata)
+            demo_id, filepath, parser, rounds_by_ticks)
+        DemoFileStore.store_metadata_file(demo_id, metadata)
 
         # Storing the Parquet files and deleting the input demo file
         DemoFileStore.store_demo_files(
-            hash_value,
+            demo_id,
             all_player_data_df,
             all_game_events_df,
             rounds_by_ticks
         )
+        
+        # Removing the uploaded file
         if os.path.exists(filepath) and os.path.isfile(filepath):
             os.remove(filepath)

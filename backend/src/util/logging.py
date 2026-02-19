@@ -1,8 +1,12 @@
+from dotenv import load_dotenv
 import logging
 import json
 import os
 import sys
 from datetime import datetime, timezone
+
+# Load env variables
+load_dotenv()
 
 LOG_FILE = "application.log" # File we log to for local development
 IS_DEV_ENV = "IS_DEV_ENV" # Environment variable indicating whether we are executing this in a dev environment

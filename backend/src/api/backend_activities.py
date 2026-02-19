@@ -15,9 +15,7 @@ from ..util.memory_monitor import memory_monitor
 
 # Environment variables
 load_dotenv()
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(',')  # TODO: Fix this
-# Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at https://demo-lab-52186364219.us-west1.run.app/demo_ingestor/ingest_demo. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing). Status code: 413.
-logger.info(f"Allowed origins: {ALLOWED_ORIGINS}")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(',')
 
 # Constants
 DEMO_COACH_ENDPOINT_PREFIX = "demo_coach"
@@ -48,14 +46,25 @@ app.add_middleware(
 # Global logic
 # Makes the uploaded demos dir if it doesn't already exist
 os.makedirs(UPLOADED_DEMOS_DIR, exist_ok=True)
-os.makedirs(DemoFileStore.DEMO_DIRECTORY, exist_ok=True)
-os.makedirs(DemoFileStore.METADATA_DIRECTORY, exist_ok=True)
+os.makedirs(DemoFileStore.DEMO_DATA_DIRECTORY, exist_ok=True)
 
 """
 ====================================================================================
 DemoCoach activities
 ====================================================================================
 """
+
+@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/check_demo_exists")
+async def check_demo_exists(demo_id: str) -> Dict:
+    """
+    Checks whether the demo corresponding to the given demo ID already exists and has its output stored locally
+    """
+    logger.info(f"check_demo_exists(demo_id={demo_id})")
+    try:
+        demo_exists = DemoFileStore.check_demo_exists(demo_id)
+        return {MESSAGE_HEADER: f"Searched for demo with ID {demo_id}", "demoExists": demo_exists}
+    except Exception as e:
+        return {ERROR_HEADER: f"Failed to find metadata for demo with ID {demo_id}: {str(e)}"}
 
 @app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_metadata")
 async def get_metadata(demo_id: str) -> Dict:
@@ -263,13 +272,13 @@ DemoIngestor activities
 
 
 @app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo")
-async def ingest_demo(file: UploadFile = File(...)) -> Dict:
+async def ingest_demo(demo_id: str, file: UploadFile = File(...)) -> Dict:
     """
     Ingests the demo using the input file.
 
     The file will first be stored locally before calling this method. This method then passes that filepath into the manager for processing.
     """
-    logger.info(f"ingest_demo(file={file})")
+    logger.info(f"ingest_demo(demo_id={demo_id}, file={file})")
 
     # Check if filename exists
     if file.filename is None:
@@ -292,30 +301,18 @@ async def ingest_demo(file: UploadFile = File(...)) -> Dict:
             buffer.write(content)
 
         if TRACK_MEMORY:
-            memory_monitor.take_snapshot("After_file_write")
-
-        # Process the file
-        # Hash value is used to uniquely identify the file
-        file_hash_value = DemoFileStore.get_file_hash(file_location)
-        if TRACK_MEMORY:
             memory_monitor.take_snapshot("Before_demo_processing")
 
-        demo_ingestor_manager.ingest_demo(file_location, file_hash_value)
+        # Process the file
+        demo_ingestor_manager.ingest_demo(demo_id, file_location)
         if TRACK_MEMORY:
             memory_monitor.take_snapshot("After_demo_processing")
-
-        # Deleting the file from the uploads directory
-        os.remove(file_location)
-        if TRACK_MEMORY:
-            memory_monitor.take_snapshot("After deleting uploaded file")
 
         if TRACK_MEMORY:
             memory_summary = memory_monitor.get_memory_summary()  # Get memory summary
 
         return {
-            MESSAGE_HEADER: "Demo ingested successfully",
-            "fileName": file.filename,
-            "demoId": file_hash_value
+            MESSAGE_HEADER: "Demo ingested successfully"
         }
     except Exception as e:
         if TRACK_MEMORY:

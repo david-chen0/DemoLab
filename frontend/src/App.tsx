@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import GameRenderer from './lib/gameRenderer';
 import RoundSelector from './components/RoundSelector';
-import { uploadDemoFile } from './services/api';
+import { checkDemoExists, uploadDemoFile } from './services/api';
 import { useGameState } from './hooks/useGameState';
 import './styles/App.css';
+import { hashFileBlake3Streaming } from './utils/demoHash';
 
 function App() {
   
@@ -105,6 +106,7 @@ function App() {
       // Reset demo data when a new file is selected to clear previous demo state
       resetDemoData();
       
+      // Set the file immediately for UI responsiveness
       setSelectedFile(file);
       setMessage('');
       setError('');
@@ -128,13 +130,21 @@ function App() {
     resetDemoData();
 
     try {
-      const result = await uploadDemoFile(selectedFile);
-      setMessage(`Success: ${result.message}`);
+      const demoId = await hashFileBlake3Streaming(selectedFile);
+      console.log(`Hash value of the input demo file: ${demoId}`);
+
+      const demoExists = await checkDemoExists(demoId);
+      if (!demoExists) {
+        // We only ingest if we haven't ingested this demo before
+        await uploadDemoFile(demoId, selectedFile);
+      }
+      else {
+        console.log("Demo has already been ingested before, skipping ingestion and showing result instead");
+      }
+      setMessage(`Successfully processed demo`);
       
       // Fetch demo information after successful ingestion
       try {
-        const demoId = result.demoId;
-
         // Fetching the game metadata
         // We need to return the value here rather than using the React setter, as React is asynchronous and can cause race conditions
         const gameMetadata = await handleGetDemoMetadata(demoId, setMessage, setError);

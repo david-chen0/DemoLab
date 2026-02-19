@@ -8,27 +8,25 @@ from .logging import logger
 
 
 class DemoFileStore:
-    # Location we will be storing the data
-    DEMO_DIRECTORY = "demo_data"
-    METADATA_DIRECTORY = "metadata"
-
+    # Location we will be storing the data. Structure will be:
+    # Demo data directory
+    # -- Demo-specific directories(ID of the demos)
+    #    -- Game data directory
+    #    -- Metadata file
+    DEMO_DATA_DIRECTORY = "demo_data"
+    GAME_DATA_DIRECTORY = "game_data"
+    METADATA_FILE = "metadata.json"
+    
     @staticmethod
-    def get_file_hash(
-        filepath: str
-    ) -> str:
+    def check_demo_exists(
+        demo_id: str
+    ) -> bool:
         """
-        Computes the file's hash using the file content and returns it. This hash is what we used to uniquely identify our demos.
-        Each hash is 64 char long and is not affected by metadata(ex: filename).
+        Checks whether the demo has already been processed before and had its output stored.
+        The input demo_id should be the hash of the demo, which is calculated by the frontend
         """
-        hasher = blake3.blake3()
-
-        # Updating the hash in 4MB chunks
-        chunk_size = 4 * (1024 ** 2)
-        with open(filepath, "rb") as f:
-            while chunk := f.read(chunk_size):
-                hasher.update(chunk)
-
-        return hasher.hexdigest()
+        demo_path = f"{DemoFileStore.DEMO_DATA_DIRECTORY}/{demo_id}"
+        return os.path.exists(demo_path)
 
     @staticmethod
     def store_metadata_file(
@@ -42,7 +40,9 @@ class DemoFileStore:
 
         # This will write into the file if it doesn't exist, otherwise throw an error if it already does
         try:
-            with open(f"{DemoFileStore.METADATA_DIRECTORY}/{hash_value}.json", "x") as f:
+            parent_dir = f"{DemoFileStore.DEMO_DATA_DIRECTORY}/{hash_value}"
+            os.makedirs(parent_dir, exist_ok=True)
+            with open(f"{parent_dir}/{DemoFileStore.METADATA_FILE}", "x") as f:
                 json.dump(metadata, f, indent=4)
         except FileExistsError:
             logger.info(f"File for demo with ID {hash_value} already exists, skipping")
@@ -56,7 +56,7 @@ class DemoFileStore:
         """
         logger.info(f"Fetching metadata for demo with ID {hash_value}")
 
-        with open(f"{DemoFileStore.METADATA_DIRECTORY}/{hash_value}.json", "r") as f:
+        with open(f"{DemoFileStore.DEMO_DATA_DIRECTORY}/{hash_value}/{DemoFileStore.METADATA_FILE}", "r") as f:
             return json.load(f)
 
     @staticmethod
@@ -96,14 +96,9 @@ class DemoFileStore:
 
         TODO: THIS IS CURRENTLY STORED LOCALLY, MOVE IT OVER TO STORE IN BLOB STORE(OR WHATEVER WE DECIDE)
         """
-        # Checking if the file has already been stored locally. If so, then we skip
-        demo_path = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}"
-        if os.path.exists(demo_path):
-            logger.info(f"Demo corresponding to ID {hash_value} already exists, skipping storing.")
-            return
-
         # Create the base demo directory if it doesn't exist, otherwise storing the Parquet file will fail
-        os.makedirs(DemoFileStore.DEMO_DIRECTORY, exist_ok=True)
+        demo_path = f"{DemoFileStore.DEMO_DATA_DIRECTORY}/{hash_value}/{DemoFileStore.GAME_DATA_DIRECTORY}"
+        os.makedirs(demo_path, exist_ok=True)
 
         def store_round_data_helper(
             data_df: pd.DataFrame,
@@ -149,14 +144,13 @@ class DemoFileStore:
         # the game data could display the round wrong(ex: Faceit counting knife round as round 1)
         # TODO: SOME GAME MODES ALSO HAVE EXTRA ROUNDS IN THE BEGINNING(EX: FACEIT HAS 3 EXTRA ROUNDS) THAT WE NEED TO OMIT
         round_num = 1
-        path_prefix = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}"
         for round_start_tick, round_end_tick in rounds_by_ticks:
             # Process and store both player and event data for this round
             store_round_data_helper(
-                player_data_df, f"{path_prefix}/player_data", round_start_tick, round_end_tick, round_num
+                player_data_df, f"{demo_path}/player_data", round_start_tick, round_end_tick, round_num
             )
             store_round_data_helper(
-                event_data_df, f"{path_prefix}/event_data", round_start_tick, round_end_tick, round_num
+                event_data_df, f"{demo_path}/event_data", round_start_tick, round_end_tick, round_num
             )
 
             logger.info(f"Created the Parquet partition for round {round_num}")
@@ -181,13 +175,13 @@ class DemoFileStore:
             round_num: The optional round number to retrieve the data for
         """
         # Checking if the processed demo directory has any files/subdirectories
-        entries = sorted(os.listdir(DemoFileStore.DEMO_DIRECTORY))
+        entries = sorted(os.listdir(DemoFileStore.DEMO_DATA_DIRECTORY))
         if not entries:
             raise FileNotFoundError("No processed demo files exist yet.")
 
         # Filepath of the demo
         # TODO: Change this if we switch to cloud storage
-        filepath = f"{DemoFileStore.DEMO_DIRECTORY}/{hash_value}/{dataset}"
+        filepath = f"{DemoFileStore.DEMO_DATA_DIRECTORY}/{hash_value}/{DemoFileStore.GAME_DATA_DIRECTORY}/{dataset}"
 
         if round_num:
             # Getting the number of rounds by counting the number of sub-directories that start with 'round_num='

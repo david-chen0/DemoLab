@@ -61,6 +61,24 @@ const mapGameMetadata = (backendMetadata: BackendGameMetadata): GameMetadata => 
 };
 
 /**
+ * Checks whether the demo has already been processed before
+ */
+export const checkDemoExists = async (demoId: string): Promise<boolean> => {
+  const endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/check_demo_exists?demo_id=${demoId}`;
+  
+  const response = await fetch(endpoint, {
+    method: 'GET',
+  });
+  const result = await response.json();
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
+  return result.demoExists;
+}
+
+/**
  * Fetches demo metadata from the backend and maps it to frontend format
  */
 export const getDemoMetadata = async (demoId: string): Promise<GameMetadata> => {
@@ -81,13 +99,13 @@ export const getDemoMetadata = async (demoId: string): Promise<GameMetadata> => 
 };
 
 /**
- * Uploads a demo file to the backend for ingestion
+ * Uploads a demo file under the given demoId(which is the hash of the file) to the backend for ingestion
  */
-export const uploadDemoFile = async (file: File): Promise<{ message: string; demoId: string }> => {
+export const uploadDemoFile = async (demoId: string, file: File) => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo`, {
+  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo?demo_id=${demoId}`, {
     method: 'POST',
     body: formData,
   });
@@ -97,11 +115,6 @@ export const uploadDemoFile = async (file: File): Promise<{ message: string; dem
   if (result.error) {
     throw new Error(result.error);
   }
-
-  return {
-    message: result.message,
-    demoId: result.demoId,
-  };
 };
 
 /**
