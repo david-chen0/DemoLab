@@ -6,7 +6,7 @@ from demoparser2 import DemoParser
 from ...config.demo_parser_events import DemoParserEvents
 from ...config.demo_parser_props import DemoParserPlayerProps
 from ...util.backoff_wrapper import BackoffWrapper
-from ...util.demo_file_store import DemoFileStore
+from ...dao.storage_factory import get_storage_client
 from ...util.logging import logger
 
 
@@ -210,7 +210,8 @@ class DemoIngestorManager:
         # If the demo's metadata already exists, we skip ingestion and assume it's already done
         # TODO: Remove this check once we've validated that the frontend hash value generation is stable
         try:
-            DemoFileStore.get_metadata(demo_id)
+            storage_client = get_storage_client(demo_id)
+            storage_client.get_metadata()
             logger.info(
                 f"Found metadata file for demo with ID {demo_id}, skipping ingestion.")
             return
@@ -325,11 +326,11 @@ class DemoIngestorManager:
         # Storing the metadata files
         metadata = self._get_match_metadata(
             demo_id, filepath, parser, rounds_by_ticks)
-        DemoFileStore.store_metadata_file(demo_id, metadata)
+        storage_client = get_storage_client(demo_id)
+        storage_client.store_metadata(metadata)
 
         # Storing the Parquet files and deleting the input demo file
-        DemoFileStore.store_demo_files(
-            demo_id,
+        storage_client.store_demo_files(
             all_player_data_df,
             all_game_events_df,
             rounds_by_ticks

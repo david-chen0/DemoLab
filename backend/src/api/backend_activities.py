@@ -9,7 +9,8 @@ from fastapi.responses import StreamingResponse
 from typing import Dict, List, Optional, Tuple
 from ..DemoCoach.manager.demo_coach_manager import DemoCoachManager
 from ..DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
-from ..util.demo_file_store import DemoFileStore
+from ..dao.storage_factory import get_storage_client
+from ..dao.base_storage_dao import BaseStorageDao
 from ..util.logging import logger
 from ..util.memory_monitor import memory_monitor
 
@@ -46,7 +47,7 @@ app.add_middleware(
 # Global logic
 # Makes the uploaded demos dir if it doesn't already exist
 os.makedirs(UPLOADED_DEMOS_DIR, exist_ok=True)
-os.makedirs(DemoFileStore.DEMO_DATA_DIRECTORY, exist_ok=True)
+os.makedirs(BaseStorageDao.DEMO_DATA_DIRECTORY, exist_ok=True)
 
 """
 ====================================================================================
@@ -61,7 +62,8 @@ async def check_demo_exists(demo_id: str) -> Dict:
     """
     logger.info(f"check_demo_exists(demo_id={demo_id})")
     try:
-        demo_exists = DemoFileStore.check_demo_exists(demo_id)
+        storage_client = get_storage_client(demo_id)
+        demo_exists = storage_client.check_demo_exists()
         return {MESSAGE_HEADER: f"Searched for demo with ID {demo_id}", "demoExists": demo_exists}
     except Exception as e:
         return {ERROR_HEADER: f"Failed to find metadata for demo with ID {demo_id}: {str(e)}"}

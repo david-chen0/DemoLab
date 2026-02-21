@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import Optional
-from ...util.demo_file_store import DemoFileStore
+from ...dao.storage_factory import get_storage_client
 from ...util.logging import logger
 
 
@@ -19,11 +19,13 @@ class DemoCoachManager:
             logger.info(f"Fetching {dataset} dataset for all rounds for demo file {hash_value}")
         else:
             logger.info(f"Fetching {dataset} dataset for demo file {hash_value} and round number {round_num}")
-        return DemoFileStore.get_demo_data(dataset, hash_value, round_num)
+        storage_client = get_storage_client(hash_value)
+        return storage_client.get_demo_data(dataset, round_num)
     
     def get_metadata(self, hash_value: str) -> dict:
         """
         Gets the metadata of the demo corresponding to the has value.
         """
-        metadata = DemoFileStore.get_metadata(hash_value)
+        storage_client = get_storage_client(hash_value)
+        metadata = storage_client.get_metadata()
         return metadata

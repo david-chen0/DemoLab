@@ -11,7 +11,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
  */
 export async function hashFileBlake3Streaming(file: File): Promise<string> {
   const hasher = blake3.create();
-  const chunkSize = 1024 * 1024 * 10; // 10MB
+  const chunkSize = 1024 * 1024; // 1MB
 
   let offset = 0;
   while (offset < file.size) {

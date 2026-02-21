@@ -37,3 +37,6 @@ blake3
 
 # Async
 asyncio
+
+# GCP SDK
+google-cloud-storage
