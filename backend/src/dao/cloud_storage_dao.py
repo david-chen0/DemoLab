@@ -36,6 +36,11 @@ class CloudStorageDao(BaseStorageDao):
         # Initialize GCP Storage bucket
         # TODO: What happens if there are multiple instances of this class? Should we make a global client and then buckets per class/demo?
         self.credentials, project = default() # Provides the credentials for accessing GCP storage
+        
+        # TODO: This is just a temporary measure to see if the credentials are working, remove once confirmed
+        logger.info(f"Credentials: {self.credentials}")
+        logger.info(f"Credential service account email: {self.credentials.service_account_email}")
+        
         client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
 
@@ -262,6 +267,7 @@ class CloudStorageDao(BaseStorageDao):
             expiration=expiration,
             method="PUT",
             content_type=content_type,
+            credentials=self.credentials,
             service_account_email=self.credentials.service_account_email,
         )
         
