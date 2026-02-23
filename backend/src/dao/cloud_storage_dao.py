@@ -1,7 +1,7 @@
+from google.auth import default
 from google.cloud import storage
 from google.api_core.exceptions import NotFound
 import json
-import os
 import pandas as pd
 from typing import Optional
 from io import BytesIO
@@ -35,7 +35,8 @@ class CloudStorageDao(BaseStorageDao):
 
         # Initialize GCP Storage bucket
         # TODO: What happens if there are multiple instances of this class? Should we make a global client and then buckets per class/demo?
-        client = storage.Client()
+        self.credentials, project = default() # Provides the credentials for accessing GCP storage
+        client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
 
     def get_parquet_blob_name(self, dataset: str, round_num: int) -> str:
@@ -261,6 +262,7 @@ class CloudStorageDao(BaseStorageDao):
             expiration=expiration,
             method="PUT",
             content_type=content_type,
+            service_account_email=self.credentials.service_account_email,
         )
         
         logger.info(f"Generated signed upload URL for {blob_path}, expires at {expiration}")
