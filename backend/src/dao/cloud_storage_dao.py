@@ -48,8 +48,7 @@ class CloudStorageDao(BaseStorageDao):
         self.service_account_email = requests.get(url, headers=headers, timeout=2).text
         logger.info(f"Manually queried for service account email, which gives {self.service_account_email}")
         
-        client = storage.Client()
-        # client = storage.Client(credentials=self.credentials)
+        client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
 
     def get_parquet_blob_name(self, dataset: str, round_num: int) -> str:
@@ -276,6 +275,7 @@ class CloudStorageDao(BaseStorageDao):
             method="PUT",
             content_type=content_type,
             service_account_email=self.service_account_email,
+            access_token=self.credentials.token,
         )
         
         logger.info(f"Generated signed upload URL for {blob_path}, expires at {expiration}")
