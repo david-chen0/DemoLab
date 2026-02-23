@@ -1,6 +1,7 @@
-from google.auth import default
-from google.cloud import storage
 from google.api_core.exceptions import NotFound
+from google.auth import default
+from google.auth import impersonated_credentials
+from google.cloud import storage
 import json
 import pandas as pd
 import requests
@@ -36,29 +37,33 @@ class CloudStorageDao(BaseStorageDao):
 
         # Initialize GCP Storage bucket
         # TODO: What happens if there are multiple instances of this class? Should we make a global client and then buckets per class/demo?
-        self.credentials, project_id = default() # Provides the credentials for accessing GCP storage
-        
+        # Provides the credentials for accessing GCP storage
+        self.credentials, project_id = default()
+
         # TODO: This is just a temporary measure to see if the credentials are working, remove once confirmed
         logger.info(f"Credentials: {self.credentials}")
-        logger.info(f"Credential service account email: {self.credentials.service_account_email}")
-        
+        logger.info(
+            f"Credential service account email: {self.credentials.service_account_email}")
+
         # Fetching the service's email
         url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
         headers = {"Metadata-Flavor": "Google"}
-        self.service_account_email = requests.get(url, headers=headers, timeout=2).text
-        logger.info(f"Manually queried for service account email, which gives {self.service_account_email}")
-        
+        self.service_account_email = requests.get(
+            url, headers=headers, timeout=2).text
+        logger.info(
+            f"Manually queried for service account email, which gives {self.service_account_email}")
+
         client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
 
     def get_parquet_blob_name(self, dataset: str, round_num: int) -> str:
         """
         Helper method to generate the blob name for a parquet file.
-        
+
         args:
             dataset: The dataset name (e.g., 'player_data', 'event_data')
             round_num: The round number
-            
+
         returns:
             The full blob name for the parquet file
         """
@@ -115,14 +120,16 @@ class CloudStorageDao(BaseStorageDao):
             # Prepare player data for this round
             round_player_df = self.store_round_data_helper(
                 player_data_df, round_start_tick, round_end_tick, round_num)
-            player_blob_name = self.get_parquet_blob_name("player_data", round_num)
+            player_blob_name = self.get_parquet_blob_name(
+                "player_data", round_num)
             upload_tasks.append(
                 ('player', round_player_df, player_blob_name, round_num))
 
             # Prepare event data for this round
             round_event_df = self.store_round_data_helper(
                 event_data_df, round_start_tick, round_end_tick, round_num)
-            event_blob_name = self.get_parquet_blob_name("event_data", round_num)
+            event_blob_name = self.get_parquet_blob_name(
+                "event_data", round_num)
             upload_tasks.append(
                 ('event', round_event_df, event_blob_name, round_num))
 
@@ -243,7 +250,7 @@ class CloudStorageDao(BaseStorageDao):
 
             # Concatenate all rounds
             return pd.concat(dfs, ignore_index=True)
-    
+
     def _generate_signed_upload_url(
         self,
         filename: str,
@@ -252,21 +259,35 @@ class CloudStorageDao(BaseStorageDao):
     ) -> str:
         """
         Generates a V4 signed URL for uploading a file to GCP Cloud Storage.
-        
+
         Args:
             filename: The name of the file to upload
             content_type: The MIME type of the file
             expiration_minutes: How long the URL should be valid in minutes
-            
+
         Returns:
             A V4 signed URL string that can be used to upload the file
         """
         # Create the full blob path within the demo directory
         blob_path = f"{self.demo_directory}/{filename}"
-        blob = self.bucket.blob(blob_path)
         
         # Calculate expiration time
-        expiration = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
+        expiration = datetime.now(timezone.utc) + \
+            timedelta(minutes=expiration_minutes)
+
+        # When using Compute Engine credentials, we need to use impersonated credentials
+        # to generate signed URLs since CE credentials don't have a private key
+        target_scopes = ['https://www.googleapis.com/auth/cloud-platform']
+        impersonated_creds = impersonated_credentials.Credentials(
+            source_credentials=self.credentials,
+            target_principal=self.service_account_email,
+            target_scopes=target_scopes,
+        )
+        
+        # Create a new storage client with impersonated credentials
+        impersonated_client = storage.Client(credentials=impersonated_creds)
+        impersonated_bucket = impersonated_client.bucket(self.BUCKET_NAME)
+        blob = impersonated_bucket.blob(blob_path)
         
         # Generate the V4 signed URL for PUT operations (upload)
         signed_url = blob.generate_signed_url(
@@ -274,9 +295,8 @@ class CloudStorageDao(BaseStorageDao):
             expiration=expiration,
             method="PUT",
             content_type=content_type,
-            service_account_email=self.service_account_email,
-            access_token=self.credentials.token,
         )
         
-        logger.info(f"Generated signed upload URL for {blob_path}, expires at {expiration}")
+        logger.info(
+            f"Generated signed upload URL for {blob_path} using impersonated credentials, expires at {expiration}")
         return signed_url
