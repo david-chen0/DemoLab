@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import GameRenderer from './lib/gameRenderer';
 import RoundSelector from './components/RoundSelector';
-import { checkDemoExists, uploadDemoFile } from './services/api';
+import { checkDemoExists, uploadDemoFileAndTriggerIngestion } from './services/api';
 import { useGameState } from './hooks/useGameState';
 import './styles/App.css';
 import { hashFileBlake3Streaming } from './utils/demoHash';
@@ -136,7 +136,7 @@ function App() {
       const demoExists = await checkDemoExists(demoId);
       if (!demoExists) {
         // We only ingest if we haven't ingested this demo before
-        await uploadDemoFile(demoId, selectedFile);
+        await uploadDemoFileAndTriggerIngestion(demoId, selectedFile);
       }
       else {
         console.log("Demo has already been ingested before, skipping ingestion and showing result instead");

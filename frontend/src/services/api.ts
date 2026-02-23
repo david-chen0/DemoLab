@@ -14,6 +14,7 @@ import type {
 export const ENDPOINT_PREFIX = import.meta.env.VITE_API_URL;
 export const DEMO_COACH_ENDPOINT_PREFIX = "demo_coach";
 export const DEMO_INGESTOR_ENDPOINT_PREFIX = "demo_ingestor";
+export const IN_DEV_ENV = import.meta.env.DEV; // Automatically set by Vite. import.meta.env.PROD is true for Prod instead
 
 // Constants
 const STREAM_BOUNDARY = "--arrowboundary123--";
@@ -99,21 +100,107 @@ export const getDemoMetadata = async (demoId: string): Promise<GameMetadata> => 
 };
 
 /**
- * Uploads a demo file under the given demoId(which is the hash of the file) to the backend for ingestion
+ * Gets a presigned upload URL from the backend
  */
-export const uploadDemoFile = async (demoId: string, file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo?demo_id=${demoId}`, {
+const getUploadUrl = async (demoId: string, filename: string): Promise<string> => {
+  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/generate_upload_url?demo_id=${demoId}&filename=${filename}`, {
     method: 'POST',
-    body: formData,
   });
 
   const result = await response.json();
 
   if (result.error) {
     throw new Error(result.error);
+  }
+
+  return result.upload_url;
+};
+
+/**
+ * Uploads a file to local storage (dev environment)
+ */
+const uploadToLocalStorage = async (file: File, filename: string): Promise<void> => {
+  // Create FormData for local file upload
+  const formData = new FormData();
+  formData.append('file', file, filename);
+
+  // Upload to local uploads directory via backend endpoint
+  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/upload-local`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload file locally: ${response.statusText}`);
+  }
+};
+
+/**
+ * Uploads a file using a presigned URL (prod environment)
+ */
+const uploadToCloudStorage = async (file: File, uploadUrl: string): Promise<void> => {
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': 'application/octet-stream',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload file to cloud storage: ${response.statusText}`);
+  }
+};
+
+/**
+ * Triggers demo ingestion from a file path
+ */
+const triggerDemoIngestion = async (demoId: string, filePath: string): Promise<void> => {
+  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo_from_path?demo_id=${demoId}&file_path=${filePath}`, {
+    method: 'POST',
+  });
+
+  const result = await response.json();
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+};
+
+/**
+ * Uploads a demo file under the given demoId(which is the hash of the file) to the appropriate storage
+ * and triggers ingestion. In dev environment, uploads to local storage. In prod, uses presigned GCP URLs.
+ */
+export const uploadDemoFileAndTriggerIngestion = async (demoId: string, file: File) => {
+  const filename = file.name;
+
+  if (IN_DEV_ENV) {
+    // Development environment: Upload to local storage
+    try {
+      // Upload file to local uploads directory
+      await uploadToLocalStorage(file, filename);
+      
+      // Trigger ingestion with local file path
+      const localFilePath = `uploads/${filename}`;
+      await triggerDemoIngestion(demoId, localFilePath);
+    } catch (error) {
+      throw new Error(`Failed to upload demo file in dev environment: ${error}`);
+    }
+  } else {
+    // Production environment: Use presigned URL for GCP Storage
+    try {
+      // Get presigned upload URL
+      const uploadUrl = await getUploadUrl(demoId, filename);
+      
+      // Upload file to cloud storage
+      await uploadToCloudStorage(file, uploadUrl);
+      
+      // Trigger ingestion with cloud file path
+      const cloudFilePath = `demo_data/${demoId}/${filename}`;
+      await triggerDemoIngestion(demoId, cloudFilePath);
+    } catch (error) {
+      throw new Error(`Failed to upload demo file in prod environment: ${error}`);
+    }
   }
 };
 

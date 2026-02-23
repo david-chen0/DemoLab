@@ -6,6 +6,7 @@ import pandas as pd
 from typing import Optional
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from .base_storage_dao import BaseStorageDao
 from ..util.logging import logger
 
@@ -229,3 +230,38 @@ class CloudStorageDao(BaseStorageDao):
 
             # Concatenate all rounds
             return pd.concat(dfs, ignore_index=True)
+    
+    def _generate_signed_upload_url(
+        self,
+        filename: str,
+        content_type: str,
+        expiration_minutes: int
+    ) -> str:
+        """
+        Generates a V4 signed URL for uploading a file to GCP Cloud Storage.
+        
+        Args:
+            filename: The name of the file to upload
+            content_type: The MIME type of the file
+            expiration_minutes: How long the URL should be valid in minutes
+            
+        Returns:
+            A V4 signed URL string that can be used to upload the file
+        """
+        # Create the full blob path within the demo directory
+        blob_path = f"{self.demo_directory}/{filename}"
+        blob = self.bucket.blob(blob_path)
+        
+        # Calculate expiration time
+        expiration = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
+        
+        # Generate the V4 signed URL for PUT operations (upload)
+        signed_url = blob.generate_signed_url(
+            version="v4",
+            expiration=expiration,
+            method="PUT",
+            content_type=content_type,
+        )
+        
+        logger.info(f"Generated signed upload URL for {blob_path}, expires at {expiration}")
+        return signed_url

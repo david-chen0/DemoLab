@@ -55,6 +55,7 @@ DemoCoach activities
 ====================================================================================
 """
 
+
 @app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/check_demo_exists")
 async def check_demo_exists(demo_id: str) -> Dict:
     """
@@ -67,6 +68,7 @@ async def check_demo_exists(demo_id: str) -> Dict:
         return {MESSAGE_HEADER: f"Searched for demo with ID {demo_id}", "demoExists": demo_exists}
     except Exception as e:
         return {ERROR_HEADER: f"Failed to find metadata for demo with ID {demo_id}: {str(e)}"}
+
 
 @app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/get_metadata")
 async def get_metadata(demo_id: str) -> Dict:
@@ -273,6 +275,62 @@ DemoIngestor activities
 """
 
 
+@app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/upload-local")
+async def upload_local_file(file: UploadFile = File(...)) -> Dict:
+    """
+    Uploads a file to the local uploads directory for development environment.
+    """
+    logger.info(f"upload_local_file(filename={file.filename})")
+
+    # Check if filename exists
+    if file.filename is None:
+        return {"error": "File must have a filename"}
+
+    try:
+        # Save the uploaded file to the uploads directory
+        file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
+
+        with open(file_location, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+
+        return {
+            "file_path": file_location,
+            MESSAGE_HEADER: "File uploaded successfully to local storage"
+        }
+    except Exception as e:
+        logger.error(f"Failed to upload file locally: {str(e)}")
+        return {ERROR_HEADER: f"Failed to upload file locally: {str(e)}"}
+
+
+@app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/generate_upload_url")
+async def generate_upload_url(demo_id: str, filename: str) -> Dict:
+    """
+    Generates a presigned upload URL for demo file upload in production environments.
+    In development, this returns a local upload endpoint.
+    """
+    logger.info(f"generate_upload_url(demo_id={demo_id}, filename={filename})")
+
+    try:
+        # Get storage client for the demo
+        storage_client = get_storage_client(demo_id)
+
+        # Generate signed upload URL (works for both local and cloud storage)
+        upload_url = storage_client.generate_signed_upload_url(
+            filename=filename,
+            content_type="application/octet-stream", # .dem files are binary
+            expiration_minutes=5 # 5 minute expiration
+        )
+
+        return {
+            "upload_url": upload_url,
+            MESSAGE_HEADER: "Upload URL generated successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to generate upload URL: {str(e)}")
+        return {ERROR_HEADER: f"Failed to generate upload URL: {str(e)}"}
+
+
 @app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo")
 async def ingest_demo(demo_id: str, file: UploadFile = File(...)) -> Dict:
     """
@@ -307,6 +365,52 @@ async def ingest_demo(demo_id: str, file: UploadFile = File(...)) -> Dict:
 
         # Process the file
         demo_ingestor_manager.ingest_demo(demo_id, file_location)
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("After_demo_processing")
+
+        if TRACK_MEMORY:
+            memory_summary = memory_monitor.get_memory_summary()  # Get memory summary
+
+        return {
+            MESSAGE_HEADER: "Demo ingested successfully"
+        }
+    except Exception as e:
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("Error_occurred")
+            memory_summary = memory_monitor.get_memory_summary()
+            logger.error(
+                f"Demo ingestion failed with memory usage: {memory_summary}")
+        return {ERROR_HEADER: f"Failed to ingest demo: {str(e)}"}
+    finally:
+        if TRACK_MEMORY:
+            memory_monitor.clear_session()
+
+
+@app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo_from_path")
+async def ingest_demo_from_path(demo_id: str, file_path: str) -> Dict:
+    """
+    Ingests the demo using a file path instead of an uploaded file.
+    This is used when the frontend handles the file upload directly.
+    """
+    logger.info(
+        f"ingest_demo_from_path(demo_id={demo_id}, file_path={file_path})")
+
+    # Start memory monitoring session
+    if TRACK_MEMORY:
+        session_id = f"demo_ingestion_{os.path.basename(file_path)}_{int(time.time())}"
+        memory_monitor.start_session(session_id)
+        memory_monitor.take_snapshot("Backend_start")
+
+    try:
+        # Verify file exists
+        if not os.path.exists(file_path):
+            return {ERROR_HEADER: f"File not found: {file_path}"}
+
+        if TRACK_MEMORY:
+            memory_monitor.take_snapshot("Before_demo_processing")
+
+        # Process the file
+        demo_ingestor_manager.ingest_demo(demo_id, file_path)
         if TRACK_MEMORY:
             memory_monitor.take_snapshot("After_demo_processing")
 

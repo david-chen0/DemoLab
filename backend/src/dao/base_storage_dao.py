@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 from typing import Optional
+from datetime import datetime, timedelta
 from ..config.demo_parser_props import DemoParserPlayerProps
 from ..util.logging import logger
 
@@ -126,5 +127,35 @@ class BaseStorageDao(ABC):
     ) -> pd.DataFrame:
         """
         Retrieves the demo data corresponding to the requested dataset and demo ID. Round number can also be specified
+        """
+        pass
+    
+    
+    def generate_signed_upload_url(
+        self,
+        filename: str,
+        content_type: str = "application/octet-stream",
+        expiration_minutes: int = 60
+    ) -> str:
+        logger.info(f"generate_signed_upload_url(demo_id={self.demo_id}, filename={filename}, content_type={content_type}, expiration_minutes={expiration_minutes})")
+        return self._generate_signed_upload_url(filename, content_type, expiration_minutes)
+    
+    @abstractmethod
+    def _generate_signed_upload_url(
+        self,
+        filename: str,
+        content_type: str,
+        expiration_minutes: int
+    ) -> str:
+        """
+        Generates a signed URL for uploading a file to storage.
+        
+        Args:
+            filename: The name of the file to upload
+            content_type: The MIME type of the file
+            expiration_minutes: How long the URL should be valid in minutes
+            
+        Returns:
+            A signed URL string that can be used to upload the file
         """
         pass

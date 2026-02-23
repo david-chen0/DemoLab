@@ -131,4 +131,18 @@ class LocalStorageDao(BaseStorageDao):
             filepath += f"/round_num={round_num}"
 
         return pd.read_parquet(filepath, engine="pyarrow")
-
+    
+    def _generate_signed_upload_url(
+        self,
+        filename: str,
+        content_type: str,
+        expiration_minutes: int
+    ) -> str:
+        """
+        LocalStorageDao does not support signed URLs since files are stored locally.
+        This method should not be called for local storage.
+        """
+        raise NotImplementedError(
+            "Signed URL generation is not supported for local storage. "
+            "Files should be uploaded directly to the local filesystem."
+        )
