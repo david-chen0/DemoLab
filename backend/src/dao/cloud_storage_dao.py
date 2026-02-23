@@ -3,6 +3,7 @@ from google.cloud import storage
 from google.api_core.exceptions import NotFound
 import json
 import pandas as pd
+import requests
 from typing import Optional
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -41,7 +42,14 @@ class CloudStorageDao(BaseStorageDao):
         logger.info(f"Credentials: {self.credentials}")
         logger.info(f"Credential service account email: {self.credentials.service_account_email}")
         
-        client = storage.Client(credentials=self.credentials)
+        # Fetching the service's email
+        url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+        headers = {"Metadata-Flavor": "Google"}
+        self.service_account_email = requests.get(url, headers=headers, timeout=2).text
+        logger.info(f"Manually queried for service account email, which gives {self.service_account_email}")
+        
+        client = storage.Client()
+        # client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
 
     def get_parquet_blob_name(self, dataset: str, round_num: int) -> str:
@@ -267,6 +275,7 @@ class CloudStorageDao(BaseStorageDao):
             expiration=expiration,
             method="PUT",
             content_type=content_type,
+            service_account_email=self.service_account_email,
         )
         
         logger.info(f"Generated signed upload URL for {blob_path}, expires at {expiration}")
