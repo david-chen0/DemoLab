@@ -40,21 +40,20 @@ class CloudStorageDao(BaseStorageDao):
         # Provides the credentials for accessing GCP storage
         self.credentials, project_id = default()
 
-        # TODO: This is just a temporary measure to see if the credentials are working, remove once confirmed
-        logger.info(f"Credentials: {self.credentials}")
-        logger.info(
-            f"Credential service account email: {self.credentials.service_account_email}")
-
         # Fetching the service's email
+        # The email is required for signing the request URL. However, the credentials doesn't have the email automatically attached, so we need to query for it
         url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
         headers = {"Metadata-Flavor": "Google"}
         self.service_account_email = requests.get(
             url, headers=headers, timeout=2).text
-        logger.info(
-            f"Manually queried for service account email, which gives {self.service_account_email}")
 
         client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
+        
+        # TODO: THIS IS ONLY FOR DEBUGGING, REMOVE ONCE FINISHED
+        blobs = self.bucket.list_blobs()
+        for blob in blobs:
+            logger.info(f"Found blob with name ${blob.name}")
 
     def get_parquet_blob_name(self, dataset: str, round_num: int) -> str:
         """
