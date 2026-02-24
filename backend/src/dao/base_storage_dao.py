@@ -53,17 +53,6 @@ class BaseStorageDao(ABC):
     
     
     # Methods to call and override
-    def check_demo_exists(self) -> bool:
-        logger.info(f"check_demo_exists(demo_id={self.demo_id})")
-        return self._check_demo_exists()
-    
-    @abstractmethod
-    def _check_demo_exists(self) -> bool:
-        """
-        Checks whether the demo corresponding to the demo ID has already been processed.
-        """
-        pass
-    
     def get_demo_state(self) -> str:
         logger.info(f"get_demo_state(demo_id={self.demo_id})")
         return self._get_demo_state()

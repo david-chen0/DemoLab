@@ -22,10 +22,6 @@ class LocalStorageDao(BaseStorageDao):
     def __init__(self, demo_id: str):
         super().__init__(demo_id)
     
-    def _check_demo_exists(self) -> bool:
-        demo_path = self.demo_directory
-        return os.path.exists(demo_path)
-    
     def _get_demo_state(self) -> str:
         """
         Check the state of the demo in local storage.
