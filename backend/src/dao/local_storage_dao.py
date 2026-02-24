@@ -26,6 +26,26 @@ class LocalStorageDao(BaseStorageDao):
         demo_path = self.demo_directory
         return os.path.exists(demo_path)
     
+    def _get_demo_state(self) -> str:
+        """
+        Check the state of the demo in local storage.
+        
+        Returns:
+            "nothing_exists": No demo directory or metadata found
+            "demo_exists": Demo directory exists but no metadata (needs ingestion)
+            "metadata_exists": Both demo directory and metadata exist (fully processed)
+        """
+        # Check if metadata exists first (fully processed state)
+        if os.path.exists(self.metadata_file_path):
+            return "metadata_exists"
+        
+        # Check if demo directory exists (needs ingestion)
+        if os.path.exists(self.demo_directory):
+            return "demo_exists"
+        
+        # Nothing exists (needs file upload)
+        return "nothing_exists"
+    
     def _store_metadata(self, metadata: dict):
         # This will write into the file if it doesn't exist, otherwise throw an error if it already does
         try:

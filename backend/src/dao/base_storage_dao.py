@@ -64,6 +64,22 @@ class BaseStorageDao(ABC):
         """
         pass
     
+    def get_demo_state(self) -> str:
+        logger.info(f"get_demo_state(demo_id={self.demo_id})")
+        return self._get_demo_state()
+    
+    @abstractmethod
+    def _get_demo_state(self) -> str:
+        """
+        Gets the current state of the demo.
+        
+        Returns:
+            "nothing_exists": No demo file or metadata found
+            "demo_exists": Demo file exists but no metadata (needs ingestion)
+            "metadata_exists": Both demo file and metadata exist (fully processed)
+        """
+        pass
+    
     
     def store_metadata(self, metadata: dict):
         logger.info(f"store_metadata_file(demo_id={self.demo_id})")

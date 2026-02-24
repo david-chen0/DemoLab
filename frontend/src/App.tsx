@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import GameRenderer from './lib/gameRenderer';
 import RoundSelector from './components/RoundSelector';
-import { checkDemoExists, uploadDemoFileAndTriggerIngestion } from './services/api';
+import { checkDemoState, triggerDemoIngestion, uploadDemoFileAndTriggerIngestion } from './services/api';
 import { useGameState } from './hooks/useGameState';
 import './styles/App.css';
 import { hashFileBlake3Streaming } from './utils/demoHash';
@@ -133,13 +133,20 @@ function App() {
       const demoId = await hashFileBlake3Streaming(selectedFile);
       console.log(`Hash value of the input demo file: ${demoId}`);
 
-      const demoExists = await checkDemoExists(demoId);
-      if (!demoExists) {
-        // We only ingest if we haven't ingested this demo before
+      const demoState = await checkDemoState(demoId);
+      console.log(`Demo state: ${demoState}`);
+      
+      if (demoState === "nothing_exists") {
+        // Upload demo file and trigger ingestion
+        console.log("No demo found, uploading file and triggering ingestion");
         await uploadDemoFileAndTriggerIngestion(demoId, selectedFile);
-      }
-      else {
-        console.log("Demo has already been ingested before, skipping ingestion and showing result instead");
+      } else if (demoState === "demo_exists") {
+        // Demo file exists but needs ingestion - only trigger ingestion, don't upload
+        console.log("Demo file exists but not ingested, triggering ingestion only");
+        await triggerDemoIngestion(demoId, selectedFile.name);
+      } else if (demoState === "metadata_exists") {
+        // Demo is fully processed, skip to results
+        console.log("Demo has already been fully processed, skipping to results");
       }
       setMessage(`Successfully processed demo`);
       

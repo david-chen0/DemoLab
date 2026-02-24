@@ -56,16 +56,17 @@ DemoCoach activities
 """
 
 
-@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/check_demo_exists")
-async def check_demo_exists(demo_id: str) -> Dict:
+@app.get(f"/{DEMO_COACH_ENDPOINT_PREFIX}/check_demo_state")
+async def check_demo_state(demo_id: str) -> Dict:
     """
-    Checks whether the demo corresponding to the given demo ID already exists and has its output stored locally
+    Checks the state of the demo corresponding to the given demo ID
     """
-    logger.info(f"check_demo_exists(demo_id={demo_id})")
+    logger.info(f"check_demo_state(demo_id={demo_id})")
     try:
         storage_client = get_storage_client(demo_id)
-        demo_exists = storage_client.check_demo_exists()
-        return {MESSAGE_HEADER: f"Searched for demo with ID {demo_id}", "demoExists": demo_exists}
+        demo_state = storage_client.get_demo_state()
+        logger.info(f"Got demo state: {demo_state}")
+        return {MESSAGE_HEADER: f"Searched for demo with ID {demo_id}", "demoState": demo_state}
     except Exception as e:
         return {ERROR_HEADER: f"Failed to find metadata for demo with ID {demo_id}: {str(e)}"}
 

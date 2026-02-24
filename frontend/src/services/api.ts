@@ -62,10 +62,10 @@ const mapGameMetadata = (backendMetadata: BackendGameMetadata): GameMetadata => 
 };
 
 /**
- * Checks whether the demo has already been processed before
+ * Checks the state of the demo
  */
-export const checkDemoExists = async (demoId: string): Promise<boolean> => {
-  const endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/check_demo_exists?demo_id=${demoId}`;
+export const checkDemoState = async (demoId: string): Promise<string> => {
+  const endpoint = `${ENDPOINT_PREFIX}/${DEMO_COACH_ENDPOINT_PREFIX}/check_demo_state?demo_id=${demoId}`;
   
   const response = await fetch(endpoint, {
     method: 'GET',
@@ -76,7 +76,7 @@ export const checkDemoExists = async (demoId: string): Promise<boolean> => {
     throw new Error(result.error);
   }
 
-  return result.demoExists;
+  return result.demoState;
 }
 
 /**
@@ -153,9 +153,17 @@ const uploadToCloudStorage = async (file: File, uploadUrl: string): Promise<void
 };
 
 /**
- * Triggers demo ingestion from a file path
+ * Triggers demo ingestion from a filename. Constructs the appropriate file path based on environment.
  */
-const triggerDemoIngestion = async (demoId: string, filePath: string): Promise<void> => {
+export const triggerDemoIngestion = async (demoId: string, filename: string): Promise<void> => {
+  let filePath: string;
+  
+  if (IN_DEV_ENV) {
+    filePath = `uploads/${filename}`;
+  } else {
+    filePath = `demo_data/${demoId}/${filename}`;
+  }
+  
   const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo_from_path?demo_id=${demoId}&file_path=${filePath}`, {
     method: 'POST',
   });
@@ -180,9 +188,8 @@ export const uploadDemoFileAndTriggerIngestion = async (demoId: string, file: Fi
       // Upload file to local uploads directory
       await uploadToLocalStorage(file, filename);
       
-      // Trigger ingestion with local file path
-      const localFilePath = `uploads/${filename}`;
-      await triggerDemoIngestion(demoId, localFilePath);
+      // Trigger ingestion with filename
+      await triggerDemoIngestion(demoId, filename);
     } catch (error) {
       throw new Error(`Failed to upload demo file in dev environment: ${error}`);
     }
@@ -195,9 +202,8 @@ export const uploadDemoFileAndTriggerIngestion = async (demoId: string, file: Fi
       // Upload file to cloud storage
       await uploadToCloudStorage(file, uploadUrl);
       
-      // Trigger ingestion with cloud file path
-      const cloudFilePath = `demo_data/${demoId}/${filename}`;
-      await triggerDemoIngestion(demoId, cloudFilePath);
+      // Trigger ingestion with filename
+      await triggerDemoIngestion(demoId, filename);
     } catch (error) {
       throw new Error(`Failed to upload demo file in prod environment: ${error}`);
     }

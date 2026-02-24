@@ -49,7 +49,7 @@ class CloudStorageDao(BaseStorageDao):
 
         client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
-        
+
         # TODO: THIS IS ONLY FOR DEBUGGING, REMOVE ONCE FINISHED
         blobs = self.bucket.list_blobs()
         for blob in blobs:
@@ -68,10 +68,29 @@ class CloudStorageDao(BaseStorageDao):
         """
         return f"{self.demo_directory}/{dataset}/round_num={round_num}/part-0.parquet"
 
-    def _check_demo_exists(self) -> bool:
-        # We can only check if files exist, so we check if the metadata file exists
-        blob = self.bucket.blob(self.metadata_file_path)
-        return blob.exists()
+    def _get_demo_state(self) -> str:
+        """
+        Check the state of the demo in cloud storage.
+
+        Returns:
+            "nothing_exists": No demo file or metadata found
+            "demo_exists": Demo file exists but no metadata (needs ingestion)
+            "metadata_exists": Both demo file and metadata exist (fully processed)
+        """
+        # Check if metadata exists first (fully processed state)
+        metadata_blob = self.bucket.blob(self.metadata_file_path)
+        if metadata_blob.exists():
+            return "metadata_exists"
+
+        # Check if demo file exists (needs ingestion)
+        # The demo file is named with the demo_id and .dem extension
+        demo_file_path = f"{self.demo_directory}/{self.demo_id}.dem"
+        demo_file_blob = self.bucket.blob(demo_file_path)
+        if demo_file_blob.exists():
+            return "demo_exists"
+
+        # Nothing exists (needs file upload)
+        return "nothing_exists"
 
     def _store_metadata(self, metadata: dict):
         metadata_json = json.dumps(metadata, indent=4)
@@ -269,7 +288,7 @@ class CloudStorageDao(BaseStorageDao):
         """
         # Create the full blob path within the demo directory
         blob_path = f"{self.demo_directory}/{filename}"
-        
+
         # Calculate expiration time
         expiration = datetime.now(timezone.utc) + \
             timedelta(minutes=expiration_minutes)
@@ -282,12 +301,12 @@ class CloudStorageDao(BaseStorageDao):
             target_principal=self.service_account_email,
             target_scopes=target_scopes,
         )
-        
+
         # Create a new storage client with impersonated credentials
         impersonated_client = storage.Client(credentials=impersonated_creds)
         impersonated_bucket = impersonated_client.bucket(self.BUCKET_NAME)
         blob = impersonated_bucket.blob(blob_path)
-        
+
         # Generate the V4 signed URL for PUT operations (upload)
         signed_url = blob.generate_signed_url(
             version="v4",
@@ -295,7 +314,7 @@ class CloudStorageDao(BaseStorageDao):
             method="PUT",
             content_type=content_type,
         )
-        
+
         logger.info(
             f"Generated signed upload URL for {blob_path} using impersonated credentials, expires at {expiration}")
         return signed_url
