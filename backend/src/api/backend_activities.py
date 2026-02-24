@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from typing import Dict, List, Optional, Tuple
 from ..DemoCoach.manager.demo_coach_manager import DemoCoachManager
 from ..DemoIngestor.manager.demo_ingestor_manager import DemoIngestorManager
-from ..dao.storage_factory import get_storage_client
+from ..dao.storage_factory import get_storage_dao
 from ..dao.base_storage_dao import BaseStorageDao
 from ..util.logging import logger
 from ..util.memory_monitor import memory_monitor
@@ -21,7 +21,6 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(',')
 # Constants
 DEMO_COACH_ENDPOINT_PREFIX = "demo_coach"
 DEMO_INGESTOR_ENDPOINT_PREFIX = "demo_ingestor"
-UPLOADED_DEMOS_DIR = "uploads"
 MESSAGE_HEADER = "message"
 ERROR_HEADER = "error"
 
@@ -44,11 +43,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global logic
-# Makes the uploaded demos dir if it doesn't already exist
-os.makedirs(UPLOADED_DEMOS_DIR, exist_ok=True)
-os.makedirs(BaseStorageDao.DEMO_DATA_DIRECTORY, exist_ok=True)
-
 """
 ====================================================================================
 DemoCoach activities
@@ -63,7 +57,7 @@ async def check_demo_state(demo_id: str) -> Dict:
     """
     logger.info(f"check_demo_state(demo_id={demo_id})")
     try:
-        storage_client = get_storage_client(demo_id)
+        storage_client = get_storage_dao(demo_id)
         demo_state = storage_client.get_demo_state()
         logger.info(f"Got demo state: {demo_state}")
         return {MESSAGE_HEADER: f"Searched for demo with ID {demo_id}", "demoState": demo_state}
@@ -289,7 +283,7 @@ async def upload_local_file(file: UploadFile = File(...)) -> Dict:
 
     try:
         # Save the uploaded file to the uploads directory
-        file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
+        file_location = os.path.join(BaseStorageDao.UPLOADED_DEMOS_DIR, file.filename)
 
         with open(file_location, "wb") as buffer:
             content = await file.read()
@@ -314,7 +308,7 @@ async def generate_upload_url(demo_id: str, filename: str) -> Dict:
 
     try:
         # Get storage client for the demo
-        storage_client = get_storage_client(demo_id)
+        storage_client = get_storage_dao(demo_id)
 
         # Generate signed upload URL (works for both local and cloud storage)
         upload_url = storage_client.generate_signed_upload_url(
@@ -333,85 +327,35 @@ async def generate_upload_url(demo_id: str, filename: str) -> Dict:
 
 
 @app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo")
-async def ingest_demo(demo_id: str, file: UploadFile = File(...)) -> Dict:
+async def ingest_demo(demo_id: str, filepath: str) -> Dict:
     """
     Ingests the demo using the input file.
 
     The file will first be stored locally before calling this method. This method then passes that filepath into the manager for processing.
     """
-    logger.info(f"ingest_demo(demo_id={demo_id}, file={file})")
-
-    # Check if filename exists
-    if file.filename is None:
-        return {"error": "File must have a filename"}
+    logger.info(f"ingest_demo(demo_id={demo_id}, filepath={filepath})")
 
     # Start memory monitoring session
     if TRACK_MEMORY:
-        session_id = f"demo_ingestion_{file.filename}_{int(time.time())}"
+        session_id = f"demo_ingestion_{filepath}_{int(time.time())}"
         memory_monitor.start_session(session_id)
         memory_monitor.take_snapshot("Backend_start")
 
     try:
-        # Save the uploaded file to the uploads directory
-        file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
-        if TRACK_MEMORY:
-            memory_monitor.take_snapshot("Before_file_write")
+        # # Save the uploaded file to the uploads directory
+        # file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
+        # if TRACK_MEMORY:
+        #     memory_monitor.take_snapshot("Before_file_write")
 
-        with open(file_location, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
+        # with open(file_location, "wb") as buffer:
+        #     content = await file.read()
+        #     buffer.write(content)
 
         if TRACK_MEMORY:
             memory_monitor.take_snapshot("Before_demo_processing")
 
         # Process the file
-        demo_ingestor_manager.ingest_demo(demo_id, file_location)
-        if TRACK_MEMORY:
-            memory_monitor.take_snapshot("After_demo_processing")
-
-        if TRACK_MEMORY:
-            memory_summary = memory_monitor.get_memory_summary()  # Get memory summary
-
-        return {
-            MESSAGE_HEADER: "Demo ingested successfully"
-        }
-    except Exception as e:
-        if TRACK_MEMORY:
-            memory_monitor.take_snapshot("Error_occurred")
-            memory_summary = memory_monitor.get_memory_summary()
-            logger.error(
-                f"Demo ingestion failed with memory usage: {memory_summary}")
-        return {ERROR_HEADER: f"Failed to ingest demo: {str(e)}"}
-    finally:
-        if TRACK_MEMORY:
-            memory_monitor.clear_session()
-
-
-@app.post(f"/{DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo_from_path")
-async def ingest_demo_from_path(demo_id: str, file_path: str) -> Dict:
-    """
-    Ingests the demo using a file path instead of an uploaded file.
-    This is used when the frontend handles the file upload directly.
-    """
-    logger.info(
-        f"ingest_demo_from_path(demo_id={demo_id}, file_path={file_path})")
-
-    # Start memory monitoring session
-    if TRACK_MEMORY:
-        session_id = f"demo_ingestion_{os.path.basename(file_path)}_{int(time.time())}"
-        memory_monitor.start_session(session_id)
-        memory_monitor.take_snapshot("Backend_start")
-
-    try:
-        # Verify file exists
-        if not os.path.exists(file_path):
-            return {ERROR_HEADER: f"File not found: {file_path}"}
-
-        if TRACK_MEMORY:
-            memory_monitor.take_snapshot("Before_demo_processing")
-
-        # Process the file
-        demo_ingestor_manager.ingest_demo(demo_id, file_path)
+        demo_ingestor_manager.ingest_demo(demo_id, filepath)
         if TRACK_MEMORY:
             memory_monitor.take_snapshot("After_demo_processing")
 

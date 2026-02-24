@@ -6,7 +6,7 @@ from demoparser2 import DemoParser
 from ...config.demo_parser_events import DemoParserEvents
 from ...config.demo_parser_props import DemoParserPlayerProps
 from ...util.backoff_wrapper import BackoffWrapper
-from ...dao.storage_factory import get_storage_client
+from ...dao.storage_factory import get_storage_dao
 from ...util.logging import logger
 
 
@@ -64,7 +64,7 @@ class DemoIngestorManager:
         DemoParserPlayerProps.DEATHS,
         DemoParserPlayerProps.ASSISTS,
     ])
-    
+
     # List of game events that we want to process
     wanted_game_events = DemoParserEvents.to_strings([
         DemoParserEvents.BEGIN_NEW_MATCH,
@@ -88,13 +88,13 @@ class DemoIngestorManager:
         DemoParserEvents.SMOKEGRENADE_EXPIRED,
         DemoParserEvents.WEAPON_FIRE,
     ])
-    
+
     # Map from the name of the demo parser event to the Pandas DF containing information for that event
     # This is stored to reduce the number of parse_event calls we have to make
     game_event_map: dict[str, pd.DataFrame] = {}
 
     def __init__(self): return
-    
+
     def _get_ticks_for_events(self, events: list[str]) -> dict[str, list[int]]:
         """
         Returns a dict mapping from the event name to the ticks where that event happened, in ascending tick order.
@@ -104,11 +104,12 @@ class DemoIngestorManager:
             # We raise an error here rather than filling the map with an extra parse_events call, as we
             # want to get all the events in the initial query to limit the number of queries
             if event_name not in self.game_event_map:
-                raise AssertionError(f"Event {event_name} has not had its data added to the game_event_map yet, this is likely a bug in the code.")
+                raise AssertionError(
+                    f"Event {event_name} has not had its data added to the game_event_map yet, this is likely a bug in the code.")
 
             # TODO: the ticks are npint32 rather than ints, likely isn't causing any issues but might be better for memory to store them as ints instead once we've processed them
             event_ticks_map[event_name] = self.game_event_map[event_name][DemoParserPlayerProps.TICK.value].tolist()
-            
+
         return event_ticks_map
 
     def _get_match_start_tick(self) -> int:
@@ -175,18 +176,18 @@ class DemoIngestorManager:
         # Gets the time that the file was created, not stored
         metadata['match_timestamp'] = datetime.datetime.fromtimestamp(
             os.path.getctime(filepath)).isoformat()
-        
+
         # Round-specific metadata
         # TODO: Need to add more to the round metadata to support the frontend once needed
         # ex: Who won the round, how the round was won, etc
         round_metadata = {}
         for i in range(len(rounds_by_ticks)):
-            round_specific_metadata = {} # Metadata for this round
-            
+            round_specific_metadata = {}  # Metadata for this round
+
             round_start, round_end = rounds_by_ticks[i]
             round_specific_metadata['round_start'] = round_start
             round_specific_metadata['round_end'] = round_end
-            
+
             round_metadata[i + 1] = round_specific_metadata
         metadata['round_metadata'] = round_metadata
 
@@ -207,19 +208,13 @@ class DemoIngestorManager:
 
             Metadata on the game is also stored locally in the metadata directory as a JSON under the game's hash value name
         """
-        # If the demo's metadata already exists, we skip ingestion and assume it's already done
-        # TODO: Remove this check once we've validated that the frontend hash value generation is stable
-        try:
-            storage_client = get_storage_client(demo_id)
-            storage_client.get_metadata()
-            logger.info(
-                f"Found metadata file for demo with ID {demo_id}, skipping ingestion.")
-            return
-        except FileNotFoundError:
-            logger.info(f"Did not find existing metadata file for demo with ID {demo_id}, continuing with ingestion.")
+        # Download the demo file to a local temporary location for processing
+        # This handles both cloud storage (downloads to /tmp) and local storage (returns existing path)
+        storage_dao = get_storage_dao(demo_id)
+        local_demo_path = storage_dao.download_demo_file(filepath)
 
         # Parser for the demo file that we are ingesting
-        parser = DemoParser(filepath)
+        parser = DemoParser(local_demo_path)
 
         # TODO: This is just temporary for printing out the entire DFs
         # Specifies to not truncate by column width
@@ -235,14 +230,17 @@ class DemoIngestorManager:
         for event in all_game_events:
             all_current_events = set(DemoParserEvents.get_all())
             if event not in all_current_events:
-                logger.warning(f"Found a new event that is not in our config: {event}")
-        
+                logger.warning(
+                    f"Found a new event that is not in our config: {event}")
+
         # Getting all the event information
-        game_events = BackoffWrapper.with_backoff_expect_result(parser.parse_events, self.wanted_game_events)
-        
+        game_events = BackoffWrapper.with_backoff_expect_result(
+            parser.parse_events, self.wanted_game_events)
+
         # Getting the tick that the match starts at
         match_start_df = None
-        possible_start_events = {DemoParserEvents.BEGIN_NEW_MATCH.value, DemoParserEvents.ROUND_ANNOUNCE_MATCH_START.value}
+        possible_start_events = {DemoParserEvents.BEGIN_NEW_MATCH.value,
+                                 DemoParserEvents.ROUND_ANNOUNCE_MATCH_START.value}
         for i, (event_name, df) in enumerate(game_events):
             if event_name in possible_start_events:
                 match_start_df = df
@@ -255,23 +253,25 @@ class DemoIngestorManager:
         # Different clients handle starting and ending games differently, so it's difficult to make a case that works for all
         # match_start_tick = match_start_df[DemoParserPlayerProps.TICK.value][0] - 1 # There should only be one element
         match_start_tick = 0
-        
+
         # Storing the events that happened after match start in game_event_map
         filtered_events = [(event_name, df[df[DemoParserPlayerProps.TICK.value]
                             >= match_start_tick]) for event_name, df in game_events]
         for event_name, event_df in filtered_events:
             # Adding a column to each row of the DF indicating the event type
             event_df['event_type'] = event_name
-            
+
             # Storing the modified event DF into the map
             self.game_event_map[event_name] = event_df
-            
+
         # Merging the event DFs together on top of each other first
         # This will lead to having many columns and null values(since we need to join all columns together), but
         # this is fine since Parquet and Arrow handle null values well
-        all_game_events_df = pd.concat(self.game_event_map.values(), ignore_index=True, sort=False)
+        all_game_events_df = pd.concat(
+            self.game_event_map.values(), ignore_index=True, sort=False)
         # Sorting the entire DF by tick value and removing the old row numbering for a clean 0...N index
-        all_game_events_df = all_game_events_df.sort_values(DemoParserPlayerProps.TICK.value).reset_index(drop=True)
+        all_game_events_df = all_game_events_df.sort_values(
+            DemoParserPlayerProps.TICK.value).reset_index(drop=True)
 
         # Getting all the player information at each tick
         all_player_data_df = BackoffWrapper.with_backoff_expect_result(
@@ -279,7 +279,8 @@ class DemoIngestorManager:
             wanted_props=self.wanted_player_props,
         ).sort_values(by=DemoParserPlayerProps.TICK.value)
         logger.info(f"Dataframe fields: {all_player_data_df.columns.tolist()}")
-        logger.info(f"Number of elements in DF: {str(all_player_data_df.size)}")
+        logger.info(
+            f"Number of elements in DF: {str(all_player_data_df.size)}")
         logger.info(f"First ten element of DF: {all_player_data_df.head(10)}")
 
         # Separate the ticks by round
@@ -296,46 +297,49 @@ class DemoIngestorManager:
         # Number of round starting and ending ticks must be the same. If they are different, we need to adjust it, since there can be edge cases(ex: warmup)
         num_round_diff = len(round_start_ticks) - len(round_end_ticks)
         if num_round_diff != 0:
-            if abs(num_round_diff) > 1: # We allow at most one diff
+            if abs(num_round_diff) > 1:  # We allow at most one diff
                 raise AssertionError(
                     f"There are {len(round_start_ticks)} round starting ticks but {len(round_end_ticks)} round ending ticks, the two need to match.\n" +
                     f"Values for these: Round starting ticks: {round_start_ticks}\n" +
                     f"Round ending ticks: {round_end_ticks}\n"
                 )
-                
+
             # TODO: Sanity check these, as there could be other edge cases
             # It's difficult to just have one condition that works for all since different clients have different ways of starting and ending matches
-            if num_round_diff > 0: # More starting than ending
-                logger.info(f"Found an extra round starting tick, popping it off from the front")
+            if num_round_diff > 0:  # More starting than ending
+                logger.info(
+                    f"Found an extra round starting tick, popping it off from the front")
                 round_start_ticks = round_start_ticks[1:]
             else:
-                logger.info(f"Found an extra round ending tick, popping it off from the front")
+                logger.info(
+                    f"Found an extra round ending tick, popping it off from the front")
                 round_end_ticks = round_end_ticks[1:]
-                
+
         rounds_by_ticks = list(zip(round_start_ticks, round_end_ticks))
         # Each round's starting tick must be less than that round's ending tick and greater than the previous round's ending tick
         previous_end_tick = -1
         for start_tick, end_tick in rounds_by_ticks:
             if start_tick > end_tick:
-                raise AssertionError(f"Found an instance of a round where starting tick {start_tick} is greater than end tick {end_tick}")
+                raise AssertionError(
+                    f"Found an instance of a round where starting tick {start_tick} is greater than end tick {end_tick}")
             if start_tick < previous_end_tick:
-                raise AssertionError(f"Found an instance where a round's start tick {start_tick} is less than the previous round's end tick {end_tick}")
+                raise AssertionError(
+                    f"Found an instance where a round's start tick {start_tick} is less than the previous round's end tick {end_tick}")
             previous_end_tick = end_tick
         logger.info(f"Rounds by tick: {rounds_by_ticks}")
 
         # Storing the metadata files
         metadata = self._get_match_metadata(
-            demo_id, filepath, parser, rounds_by_ticks)
-        storage_client = get_storage_client(demo_id)
-        storage_client.store_metadata(metadata)
+            demo_id, local_demo_path, parser, rounds_by_ticks)
+        storage_dao.store_metadata(metadata)
 
         # Storing the Parquet files and deleting the input demo file
-        storage_client.store_demo_files(
+        storage_dao.store_demo_files(
             all_player_data_df,
             all_game_events_df,
             rounds_by_ticks
         )
-        
+
         # Removing the uploaded file
-        if os.path.exists(filepath) and os.path.isfile(filepath):
-            os.remove(filepath)
+        if os.path.exists(local_demo_path) and os.path.isfile(local_demo_path):
+            os.remove(local_demo_path)

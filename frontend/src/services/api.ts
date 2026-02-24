@@ -101,9 +101,12 @@ export const getDemoMetadata = async (demoId: string): Promise<GameMetadata> => 
 
 /**
  * Gets a presigned upload URL from the backend
+ * 
+ * We will store the demo file under the name <demoId>.dem for de-duplication purposes
  */
-const getUploadUrl = async (demoId: string, filename: string): Promise<string> => {
-  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/generate_upload_url?demo_id=${demoId}&filename=${filename}`, {
+const getUploadUrl = async (demoId: string): Promise<string> => {
+  const targetFilename = `${demoId}.dem`;
+  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/generate_upload_url?demo_id=${demoId}&filename=${targetFilename}`, {
     method: 'POST',
   });
 
@@ -155,16 +158,8 @@ const uploadToCloudStorage = async (file: File, uploadUrl: string): Promise<void
 /**
  * Triggers demo ingestion from a filename. Constructs the appropriate file path based on environment.
  */
-export const triggerDemoIngestion = async (demoId: string, filename: string): Promise<void> => {
-  let filePath: string;
-  
-  if (IN_DEV_ENV) {
-    filePath = `uploads/${filename}`;
-  } else {
-    filePath = `demo_data/${demoId}/${filename}`;
-  }
-  
-  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo_from_path?demo_id=${demoId}&file_path=${filePath}`, {
+export const triggerDemoIngestion = async (demoId: string, filepath: string): Promise<void> => {
+  const response = await fetch(`${ENDPOINT_PREFIX}/${DEMO_INGESTOR_ENDPOINT_PREFIX}/ingest_demo?demo_id=${demoId}&filepath=${filepath}`, {
     method: 'POST',
   });
 
@@ -180,16 +175,20 @@ export const triggerDemoIngestion = async (demoId: string, filename: string): Pr
  * and triggers ingestion. In dev environment, uploads to local storage. In prod, uses presigned GCP URLs.
  */
 export const uploadDemoFileAndTriggerIngestion = async (demoId: string, file: File) => {
-  const filename = file.name;
+  // The target location to store the file
+  // For local, this will be the place the file is already stored
+  // For cloud, this will be the name of the stored file
+  const demoFileName = `${demoId}.dem`;
+  const targetFileLocation = `uploads/${demoFileName}`;
 
   if (IN_DEV_ENV) {
     // Development environment: Upload to local storage
     try {
       // Upload file to local uploads directory
-      await uploadToLocalStorage(file, filename);
+      await uploadToLocalStorage(file, demoFileName);
       
-      // Trigger ingestion with filename
-      await triggerDemoIngestion(demoId, filename);
+      // Trigger ingestion
+      await triggerDemoIngestion(demoId, targetFileLocation);
     } catch (error) {
       throw new Error(`Failed to upload demo file in dev environment: ${error}`);
     }
@@ -197,13 +196,13 @@ export const uploadDemoFileAndTriggerIngestion = async (demoId: string, file: Fi
     // Production environment: Use presigned URL for GCP Storage
     try {
       // Get presigned upload URL
-      const uploadUrl = await getUploadUrl(demoId, filename);
+      const uploadUrl = await getUploadUrl(demoId);
       
       // Upload file to cloud storage
       await uploadToCloudStorage(file, uploadUrl);
       
       // Trigger ingestion with filename
-      await triggerDemoIngestion(demoId, filename);
+      await triggerDemoIngestion(demoId, targetFileLocation);
     } catch (error) {
       throw new Error(`Failed to upload demo file in prod environment: ${error}`);
     }

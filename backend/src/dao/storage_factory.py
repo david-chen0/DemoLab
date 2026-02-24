@@ -8,7 +8,7 @@ from .local_storage_dao import LocalStorageDao
 load_dotenv()
 IS_DEV_ENV = os.getenv("IS_DEV_ENV") # Environment variable indicating whether we are executing this in a dev environment
 
-def get_storage_client(demo_id: str) -> BaseStorageDao:
+def get_storage_dao(demo_id: str) -> BaseStorageDao:
     if IS_DEV_ENV:
         return LocalStorageDao(demo_id)
     else:

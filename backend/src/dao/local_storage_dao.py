@@ -8,6 +8,8 @@ from ..util.logging import logger
 class LocalStorageDao(BaseStorageDao):
     """
     Local file structure:
+    uploads/    <--- Dir to store demo files
+    └── <demo_name.dem>    <--- Demo file to process
     demo_data/    <--- Top-level dir
     └── <demo_hash>    <--- Dir for the entire demo
         └── event_data    <--- Dir for event data
@@ -21,6 +23,9 @@ class LocalStorageDao(BaseStorageDao):
     
     def __init__(self, demo_id: str):
         super().__init__(demo_id)
+        
+        os.makedirs(BaseStorageDao.UPLOADED_DEMOS_DIR, exist_ok=True)
+        os.makedirs(BaseStorageDao.DEMO_DATA_DIRECTORY, exist_ok=True)
     
     def _get_demo_state(self) -> str:
         """
@@ -162,3 +167,7 @@ class LocalStorageDao(BaseStorageDao):
             "Signed URL generation is not supported for local storage. "
             "Files should be uploaded directly to the local filesystem."
         )
+        
+    def _download_demo_file(self, filepath: str) -> str:
+        # Return the existing filepath, since the file has already been copied down to there locally
+        return filepath

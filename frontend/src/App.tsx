@@ -148,7 +148,6 @@ function App() {
         // Demo is fully processed, skip to results
         console.log("Demo has already been fully processed, skipping to results");
       }
-      setMessage(`Successfully processed demo`);
       
       // Fetch demo information after successful ingestion
       try {
@@ -175,6 +174,8 @@ function App() {
 
         // Fetching the demo data for the selected round
         await initializeRoundData(gameMetadata, demoId, setError, selectedRound);
+
+        setMessage(`Successfully processed demo`);
       } catch (infoError) {
         setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
       }

@@ -1,25 +1,28 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 from typing import Optional
-from datetime import datetime, timedelta
 from ..config.demo_parser_props import DemoParserPlayerProps
 from ..util.logging import logger
 
 class BaseStorageDao(ABC):
     # Override the methods with _ in front of it, but call the ones without a _ in front of it
+    # We make a separate abstract method so that all method calls get logged
     
     # Constants
-    DEMO_DATA_DIRECTORY = "demo_data"
-    METADATA_FILE = "metadata.json"
-    SYNTHETIC_ROUND_NUM_COL_NAME = "round_num"
+    DEMO_DATA_DIRECTORY = "demo_data" # Directory for storing all the processed demo data
+    UPLOADED_DEMOS_DIR = "uploads" # Directory for storing the unprocessed demo files
+    METADATA_FILE = "metadata.json" # Name of the metadata file
+    SYNTHETIC_ROUND_NUM_COL_NAME = "round_num" # Name of the column to be inserted for tracking round number
     
     # Variables
     demo_id: str # The ID of the demo that this instance is meant to process
+    demo_directory: str # Name of the directory for the demo
+    metadata_file_path: str # Name of the file for the metadata
     
     def __init__(self, demo_id: str):
         self.demo_id = demo_id
-        self.demo_directory = f"{BaseStorageDao.DEMO_DATA_DIRECTORY}/{self.demo_id}" # Name of the directory for the demo
-        self.metadata_file_path = f"{self.demo_directory}/{self.METADATA_FILE}" # Name of the file for the metadata
+        self.demo_directory = f"{BaseStorageDao.DEMO_DATA_DIRECTORY}/{self.demo_id}"
+        self.metadata_file_path = f"{self.demo_directory}/{self.METADATA_FILE}"
         
         
     # Common Helper methods
@@ -162,5 +165,20 @@ class BaseStorageDao(ABC):
             
         Returns:
             A signed URL string that can be used to upload the file
+        """
+        pass
+    
+    
+    def download_demo_file(self, filepath: str) -> str:
+        logger.info(f"download_demo_file(filepath)")
+        return self._download_demo_file(filepath)
+
+    @abstractmethod
+    def _download_demo_file(self, filepath: str) -> str:
+        """
+        Downloads the demo file from its stored filepath location to a local temporary location.
+        
+        Returns:
+            The local file path where the demo file has been downloaded
         """
         pass
