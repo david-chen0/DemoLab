@@ -58,7 +58,7 @@ async def check_demo_state(demo_id: str) -> Dict:
     logger.info(f"check_demo_state(demo_id={demo_id})")
     try:
         storage_client = get_storage_dao(demo_id)
-        demo_state = storage_client.get_demo_state()
+        demo_state = storage_client.check_demo_state()
         logger.info(f"Got demo state: {demo_state}")
         return {MESSAGE_HEADER: f"Searched for demo with ID {demo_id}", "demoState": demo_state}
     except Exception as e:
@@ -80,6 +80,8 @@ async def get_metadata(demo_id: str) -> Dict:
 
 # TODO: just get these methods working first, then figure out where to store this
 TICKS_PER_CHUNK = 20  # Indicates how many ticks we want to store per chunk
+
+
 def _chunk_by_num_ticks(table: pa.Table, start_tick: int, end_tick: int) -> List[Tuple[int, int, Optional[int], Optional[int]]]:
     """
     Chunks the input table by TICKS_PER_CHUNKS ticks per chunk.
@@ -283,7 +285,7 @@ async def upload_local_file(file: UploadFile = File(...)) -> Dict:
 
     try:
         # Save the uploaded file to the uploads directory
-        file_location = os.path.join(BaseStorageDao.UPLOADED_DEMOS_DIR, file.filename)
+        file_location = os.path.join(BaseStorageDao.UPLOADS_DIR, file.filename)
 
         with open(file_location, "wb") as buffer:
             content = await file.read()
@@ -313,8 +315,8 @@ async def generate_upload_url(demo_id: str, filename: str) -> Dict:
         # Generate signed upload URL (works for both local and cloud storage)
         upload_url = storage_client.generate_signed_upload_url(
             filename=filename,
-            content_type="application/octet-stream", # .dem files are binary
-            expiration_minutes=5 # 5 minute expiration
+            content_type="application/octet-stream",  # .dem files are binary
+            expiration_minutes=5  # 5 minute expiration
         )
 
         return {
@@ -342,15 +344,6 @@ async def ingest_demo(demo_id: str, filepath: str) -> Dict:
         memory_monitor.take_snapshot("Backend_start")
 
     try:
-        # # Save the uploaded file to the uploads directory
-        # file_location = os.path.join(UPLOADED_DEMOS_DIR, file.filename)
-        # if TRACK_MEMORY:
-        #     memory_monitor.take_snapshot("Before_file_write")
-
-        # with open(file_location, "wb") as buffer:
-        #     content = await file.read()
-        #     buffer.write(content)
-
         if TRACK_MEMORY:
             memory_monitor.take_snapshot("Before_demo_processing")
 

@@ -4,28 +4,31 @@ from typing import Optional
 from ..config.demo_parser_props import DemoParserPlayerProps
 from ..util.logging import logger
 
+
 class BaseStorageDao(ABC):
     # Override the methods with _ in front of it, but call the ones without a _ in front of it
     # We make a separate abstract method so that all method calls get logged
-    
+
     # Constants
-    DEMO_DATA_DIRECTORY = "demo_data" # Directory for storing all the processed demo data
-    UPLOADED_DEMOS_DIR = "uploads" # Directory for storing the unprocessed demo files
-    METADATA_FILE = "metadata.json" # Name of the metadata file
-    SYNTHETIC_ROUND_NUM_COL_NAME = "round_num" # Name of the column to be inserted for tracking round number
-    
+    # Directory for storing all the processed demo data
+    DEMO_DATA_DIRECTORY = "demo_data"
+    UPLOADS_DIR = "uploads"  # Directory for storing uploaded files, mainly the unprocessed demo files
+    METADATA_FILE = "metadata.json"  # Name of the metadata file
+    # Name of the column to be inserted for tracking round number
+    SYNTHETIC_ROUND_NUM_COL_NAME = "round_num"
+
     # Variables
-    demo_id: str # The ID of the demo that this instance is meant to process
-    demo_directory: str # Name of the directory for the demo
-    metadata_file_path: str # Name of the file for the metadata
-    
+    demo_id: str  # The ID of the demo that this instance is meant to process
+    demo_directory: str  # Name of the directory for the demo
+    metadata_file_path: str  # Name of the file for the metadata
+
     def __init__(self, demo_id: str):
         self.demo_id = demo_id
         self.demo_directory = f"{BaseStorageDao.DEMO_DATA_DIRECTORY}/{self.demo_id}"
         self.metadata_file_path = f"{self.demo_directory}/{self.METADATA_FILE}"
-        
-        
+
     # Common Helper methods
+
     def store_round_data_helper(
         self,
         data_df: pd.DataFrame,
@@ -53,59 +56,57 @@ class BaseStorageDao(ABC):
         round_df = data_df.iloc[start_idx:end_idx].copy()
         round_df[self.SYNTHETIC_ROUND_NUM_COL_NAME] = round_num
         return round_df
-    
-    
+
     # Methods to call and override
-    def get_demo_state(self) -> str:
-        logger.info(f"get_demo_state(demo_id={self.demo_id})")
-        return self._get_demo_state()
-    
+
+    def check_demo_state(self) -> str:
+        logger.info(f"check_demo_state(demo_id={self.demo_id})")
+        return self._check_demo_state()
+
     @abstractmethod
-    def _get_demo_state(self) -> str:
+    def _check_demo_state(self) -> str:
         """
         Gets the current state of the demo.
-        
+
         Returns:
             "nothing_exists": No demo file or metadata found
             "demo_exists": Demo file exists but no metadata (needs ingestion)
             "metadata_exists": Both demo file and metadata exist (fully processed)
         """
         pass
-    
-    
+
     def store_metadata(self, metadata: dict):
-        logger.info(f"store_metadata_file(demo_id={self.demo_id})")
+        logger.info(f"store_metadata(demo_id={self.demo_id})")
         self._store_metadata(metadata)
-    
+
     @abstractmethod
     def _store_metadata(self, metadata: dict):
         """
         Stores the metadata file in JSON format for the game corresponding to the demo ID
         """
         pass
-    
-    
+
     def get_metadata(self) -> dict:
         logger.info(f"get_metadata(demo_id={self.demo_id})")
         return self._get_metadata()
-        
+
     @abstractmethod
     def _get_metadata(self) -> dict:
         """
         Returns the metadata dict for the demo corresponding to the input demo ID
         """
         pass
-    
-    
+
     def store_demo_files(
         self,
         player_data_df: pd.DataFrame,
         event_data_df: pd.DataFrame,
         rounds_by_ticks: list[tuple[int, int]],
     ):
-        logger.info(f"store_demo_files(demo_id={self.demo_id}, player_data_df, event_data_df, rounds_by_ticks={rounds_by_ticks})")
+        logger.info(
+            f"store_demo_files(demo_id={self.demo_id}, player_data_df, event_data_df, rounds_by_ticks={rounds_by_ticks})")
         self._store_demo_files(player_data_df, event_data_df, rounds_by_ticks)
-        
+
     @abstractmethod
     def _store_demo_files(
         self,
@@ -117,16 +118,16 @@ class BaseStorageDao(ABC):
         Stores the demo files corresponding to the given demo ID using the input player data, event data, and rounds.
         """
         pass
-    
-    
+
     def get_demo_data(
         self,
         dataset: str,
         round_num: Optional[int] = None,
     ) -> pd.DataFrame:
-        logger.info(f"get_demo_data(dataset={dataset}, demo_id={self.demo_id}, round_num={round_num})")
+        logger.info(
+            f"get_demo_data(dataset={dataset}, demo_id={self.demo_id}, round_num={round_num})")
         return self._get_demo_data(dataset, round_num)
-        
+
     @abstractmethod
     def _get_demo_data(
         self,
@@ -137,17 +138,17 @@ class BaseStorageDao(ABC):
         Retrieves the demo data corresponding to the requested dataset and demo ID. Round number can also be specified
         """
         pass
-    
-    
+
     def generate_signed_upload_url(
         self,
         filename: str,
         content_type: str = "application/octet-stream",
         expiration_minutes: int = 60
     ) -> str:
-        logger.info(f"generate_signed_upload_url(demo_id={self.demo_id}, filename={filename}, content_type={content_type}, expiration_minutes={expiration_minutes})")
+        logger.info(
+            f"generate_signed_upload_url(demo_id={self.demo_id}, filename={filename}, content_type={content_type}, expiration_minutes={expiration_minutes})")
         return self._generate_signed_upload_url(filename, content_type, expiration_minutes)
-    
+
     @abstractmethod
     def _generate_signed_upload_url(
         self,
@@ -157,18 +158,17 @@ class BaseStorageDao(ABC):
     ) -> str:
         """
         Generates a signed URL for uploading a file to storage.
-        
+
         Args:
             filename: The name of the file to upload
             content_type: The MIME type of the file
             expiration_minutes: How long the URL should be valid in minutes
-            
+
         Returns:
             A signed URL string that can be used to upload the file
         """
         pass
-    
-    
+
     def download_demo_file(self, filepath: str) -> str:
         logger.info(f"download_demo_file(filepath)")
         return self._download_demo_file(filepath)
@@ -177,7 +177,7 @@ class BaseStorageDao(ABC):
     def _download_demo_file(self, filepath: str) -> str:
         """
         Downloads the demo file from its stored filepath location to a local temporary location.
-        
+
         Returns:
             The local file path where the demo file has been downloaded
         """

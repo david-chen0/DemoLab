@@ -52,11 +52,6 @@ class CloudStorageDao(BaseStorageDao):
         client = storage.Client(credentials=self.credentials)
         self.bucket = client.bucket(self.BUCKET_NAME)
 
-        # TODO: THIS IS ONLY FOR DEBUGGING, REMOVE ONCE FINISHED
-        blobs = self.bucket.list_blobs()
-        for blob in blobs:
-            logger.info(f"Found blob with name {blob.name}")
-
     def get_parquet_blob_name(self, dataset: str, round_num: int) -> str:
         """
         Helper method to generate the blob name for a parquet file.
@@ -70,7 +65,7 @@ class CloudStorageDao(BaseStorageDao):
         """
         return f"{self.demo_directory}/{dataset}/round_num={round_num}/part-0.parquet"
 
-    def _get_demo_state(self) -> str:
+    def _check_demo_state(self) -> str:
         """
         Check the state of the demo in cloud storage.
 
@@ -86,7 +81,7 @@ class CloudStorageDao(BaseStorageDao):
 
         # Check if demo file exists (needs ingestion)
         # The demo file is named with the demo_id and .dem extension
-        demo_file_path = f"{self.demo_directory}/{self.demo_id}.dem"
+        demo_file_path = f"{BaseStorageDao.UPLOADS_DIR}/{self.demo_id}.dem"
         demo_file_blob = self.bucket.blob(demo_file_path)
         if demo_file_blob.exists():
             return "demo_exists"
@@ -289,8 +284,7 @@ class CloudStorageDao(BaseStorageDao):
             A V4 signed URL string that can be used to upload the file
         """
         # Create the full blob path within the demo directory
-        # blob_path = f"{self.demo_directory}/{filename}"
-        blob_path = f"{BaseStorageDao.UPLOADED_DEMOS_DIR}/{filename}"
+        blob_path = f"{BaseStorageDao.UPLOADS_DIR}/{filename}"
 
         # Calculate expiration time
         expiration = datetime.now(timezone.utc) + \
@@ -325,26 +319,28 @@ class CloudStorageDao(BaseStorageDao):
     def _download_demo_file(self, filepath: str) -> str:
         """
         Downloads the demo file from cloud storage to a temporary local file.
-        
+
         Returns:
             The local file path where the demo file has been downloaded
         """
         blob = self.bucket.blob(filepath)
-        
+
         # Create a temporary file in /tmp with .dem extension
-        temp_fd, temp_path = tempfile.mkstemp(suffix=".dem", prefix=f"demo_{self.demo_id}_", dir="/tmp")
-        
+        temp_fd, temp_path = tempfile.mkstemp(
+            suffix=".dem", prefix=f"demo_{self.demo_id}_", dir="/tmp")
+
         try:
             # Download the blob to the temporary file
-            logger.info(f"Downloading demo file from {filepath} to {temp_path}")
+            logger.info(
+                f"Downloading demo file from {filepath} to {temp_path}")
             blob.download_to_filename(temp_path)
             logger.info(f"Successfully downloaded demo file to {temp_path}")
-            
+
             # Close the file descriptor since we only need the path
             os.close(temp_fd)
-            
+
             return temp_path
-            
+
         except Exception as e:
             # Clean up the temporary file if download fails
             try:

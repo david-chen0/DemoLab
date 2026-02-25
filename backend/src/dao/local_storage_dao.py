@@ -5,6 +5,7 @@ from typing import Optional
 from .base_storage_dao import BaseStorageDao
 from ..util.logging import logger
 
+
 class LocalStorageDao(BaseStorageDao):
     """
     Local file structure:
@@ -20,17 +21,17 @@ class LocalStorageDao(BaseStorageDao):
                 └── part-0.parquet  <----- Parquet partition
         └── metadata.json    <--- Metadata JSON
     """
-    
+
     def __init__(self, demo_id: str):
         super().__init__(demo_id)
-        
-        os.makedirs(BaseStorageDao.UPLOADED_DEMOS_DIR, exist_ok=True)
+
+        os.makedirs(BaseStorageDao.UPLOADS_DIR, exist_ok=True)
         os.makedirs(BaseStorageDao.DEMO_DATA_DIRECTORY, exist_ok=True)
-    
-    def _get_demo_state(self) -> str:
+
+    def _check_demo_state(self) -> str:
         """
         Check the state of the demo in local storage.
-        
+
         Returns:
             "nothing_exists": No demo directory or metadata found
             "demo_exists": Demo directory exists but no metadata (needs ingestion)
@@ -39,14 +40,14 @@ class LocalStorageDao(BaseStorageDao):
         # Check if metadata exists first (fully processed state)
         if os.path.exists(self.metadata_file_path):
             return "metadata_exists"
-        
+
         # Check if demo directory exists (needs ingestion)
         if os.path.exists(self.demo_directory):
             return "demo_exists"
-        
+
         # Nothing exists (needs file upload)
         return "nothing_exists"
-    
+
     def _store_metadata(self, metadata: dict):
         # This will write into the file if it doesn't exist, otherwise throw an error if it already does
         try:
@@ -55,12 +56,13 @@ class LocalStorageDao(BaseStorageDao):
             with open(self.metadata_file_path, "x") as f:
                 json.dump(metadata, f, indent=4)
         except FileExistsError:
-            logger.info(f"File for demo with ID {self.demo_id} already exists, skipping")
-            
+            logger.info(
+                f"File for demo with ID {self.demo_id} already exists, skipping")
+
     def _get_metadata(self) -> dict:
         with open(self.metadata_file_path, "r") as f:
             return json.load(f)
-        
+
     def _store_demo_files(
         self,
         player_data_df: pd.DataFrame,
@@ -91,7 +93,8 @@ class LocalStorageDao(BaseStorageDao):
             # Storing the player data for the round
             player_output_path = f"{demo_path}/player_data"
             os.makedirs(player_output_path, exist_ok=True)
-            round_player_df = self.store_round_data_helper(player_data_df, round_start_tick, round_end_tick, round_num)
+            round_player_df = self.store_round_data_helper(
+                player_data_df, round_start_tick, round_end_tick, round_num)
             round_player_df.to_parquet(
                 player_output_path,
                 engine="pyarrow",
@@ -99,11 +102,12 @@ class LocalStorageDao(BaseStorageDao):
                 partition_cols=[self.SYNTHETIC_ROUND_NUM_COL_NAME],
                 index=False,
             )
-            
+
             # Storing the event data for the round
             event_output_path = f"{demo_path}/event_data"
             os.makedirs(event_output_path, exist_ok=True)
-            round_event_df = self.store_round_data_helper(event_data_df, round_start_tick, round_end_tick, round_num)
+            round_event_df = self.store_round_data_helper(
+                event_data_df, round_start_tick, round_end_tick, round_num)
             round_event_df.to_parquet(
                 event_output_path,
                 engine="pyarrow",
@@ -115,8 +119,9 @@ class LocalStorageDao(BaseStorageDao):
             logger.info(f"Created the Parquet partition for round {round_num}")
             round_num += 1
 
-        logger.info(f"Finished creating all Parquet files for demo {self.demo_id}")
-        
+        logger.info(
+            f"Finished creating all Parquet files for demo {self.demo_id}")
+
     def _get_demo_data(
         self,
         dataset: str,
@@ -152,7 +157,7 @@ class LocalStorageDao(BaseStorageDao):
             filepath += f"/round_num={round_num}"
 
         return pd.read_parquet(filepath, engine="pyarrow")
-    
+
     def _generate_signed_upload_url(
         self,
         filename: str,
@@ -167,7 +172,7 @@ class LocalStorageDao(BaseStorageDao):
             "Signed URL generation is not supported for local storage. "
             "Files should be uploaded directly to the local filesystem."
         )
-        
+
     def _download_demo_file(self, filepath: str) -> str:
         # Return the existing filepath, since the file has already been copied down to there locally
         return filepath
