@@ -72,6 +72,40 @@
   border: 1px solid #f5c6cb;
 }
 
+/* Inline Loading Styles */
+.loading-game-area {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.loading-animation-inline {
+  max-width: 95%;
+  max-height: 400px;
+  width: auto;
+  height: auto;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.loading-text-inline {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 0.5rem 0;
+}
+
+.loading-subtext-inline {
+  font-size: 1rem;
+  color: #666;
+  margin: 0;
+}
+
 /* Single-column layout */
 .game-layout {
   display: flex;

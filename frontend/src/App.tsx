@@ -252,7 +252,25 @@ function App() {
         </div>
       )}
 
-      {demoMetadata && roundState && roundData && (
+      {/* Show loading state in game layout when uploading */}
+      {uploading && (
+        <div className="game-layout">
+          <div className="game-section">
+            <div className="loading-game-area">
+              <img
+                src="/loading_animation.gif"
+                alt="Loading..."
+                className="loading-animation-inline"
+              />
+              <p className="loading-text-inline">Processing demo file...</p>
+              <p className="loading-subtext-inline">This may take a few moments</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show demo content when loaded and not uploading */}
+      {!uploading && demoMetadata && roundState && roundData && (
         <div className="game-layout">
           <div
             className="game-section"
