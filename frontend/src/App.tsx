@@ -143,7 +143,8 @@ function App() {
       } else if (demoState === "demo_exists") {
         // Demo file exists but needs ingestion - only trigger ingestion, don't upload
         console.log("Demo file exists but not ingested, triggering ingestion only");
-        await triggerDemoIngestion(demoId, selectedFile.name);
+        const targetFilepath = `uploads/${demoId}.dem`;
+        await triggerDemoIngestion(demoId, targetFilepath);
       } else if (demoState === "metadata_exists") {
         // Demo is fully processed, skip to results
         console.log("Demo has already been fully processed, skipping to results");
