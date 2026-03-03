@@ -7,13 +7,14 @@ import './styles/App.css';
 import { hashFileBlake3Streaming } from './utils/demoHash';
 
 function App() {
+
+  // Constants
+  const EXAMPLE_DEMO_ID = "b60339871c035ca1d97b31905205e58c83ac35ebf42d7aae1d31537595e0a81a"; // ID of the example demo
   
   // Stores the file the file that the user is uploading for demo ingestion
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   // Indicates whether we are uploading a file to our backend for ingestion
   const [uploading, setUploading] = useState(false);
-  // Message used to indicate the status of the demo file upload
-  const [message, setMessage] = useState<string>('');
   // Error that was thrown during the upload
   const [error, setError] = useState<string>('');
   // Ref that is being used to track the file input
@@ -108,29 +109,69 @@ function App() {
       
       // Set the file immediately for UI responsiveness
       setSelectedFile(file);
-      setMessage('');
       setError('');
     }
   }
 
 
   /**
-   * This method takes in a user input file, which is stored in selectedFile, and ingests it by calling
-   * the DemoIngestor endpoint.
+   * This method takes in a user input file, which is stored in selectedFile, and initializes the game metadata and first round data
    */
-  const handleUpload = async () => {
+  const initializeGameData = async (demoId: string) => {
+    try {
+      // Fetching the game metadata
+      // We need to return the value here rather than using the React setter, as React is asynchronous and can cause race conditions
+      const gameMetadata = await handleGetDemoMetadata(demoId, setError);
+      if (gameMetadata == undefined) {
+        throw Error("Failed to fetch game metadata");
+      }
+
+      // Console log the demo information instead of displaying it
+      console.log('Demo Information:', {
+        fileId: gameMetadata.demoId,
+        numberOfRounds: gameMetadata.numRounds,
+        map: gameMetadata.map,
+        matchTimestamp: gameMetadata.matchTimestamp,
+        serverType: gameMetadata.serverType,
+        players: gameMetadata.playerInfo.map(player => ({
+          name: player.playerName,
+          id: player.playerId,
+          team: player.playerTeamNumber
+        }))
+      });
+
+      // Fetching the demo data for the selected round
+      await initializeRoundData(gameMetadata, demoId, setError, selectedRound);
+    } catch (infoError) {
+      setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
+    }
+    
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    };
+  }
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDemoUpload = async () => {
+    // Triggers the manual demo upload workflow
+    setUploading(true);
+    setError('');
+    resetDemoData();
+    console.log('Processing uploaded demo');
+
     if (!selectedFile) {
       setError('Please select a file first');
       return;
     }
 
-    setUploading(true);
-    setMessage('');
-    setError('');
-    resetDemoData();
-
+    // Processing the demo if we haven't processed it before
+    let demoId: string;
     try {
-      const demoId = await hashFileBlake3Streaming(selectedFile);
+      demoId = await hashFileBlake3Streaming(selectedFile);
       console.log(`Hash value of the input demo file: ${demoId}`);
 
       const demoState = await checkDemoState(demoId);
@@ -149,51 +190,25 @@ function App() {
         // Demo is fully processed, skip to results
         console.log("Demo has already been fully processed, skipping to results");
       }
-      
-      // Fetch demo information after successful ingestion
-      try {
-        // Fetching the game metadata
-        // We need to return the value here rather than using the React setter, as React is asynchronous and can cause race conditions
-        const gameMetadata = await handleGetDemoMetadata(demoId, setMessage, setError);
-        if (gameMetadata == undefined) {
-          throw Error("Failed to fetch game metadata");
-        }
-
-        // Console log the demo information instead of displaying it
-        console.log('Demo Information:', {
-          fileId: gameMetadata.demoId,
-          numberOfRounds: gameMetadata.numRounds,
-          map: gameMetadata.map,
-          matchTimestamp: gameMetadata.matchTimestamp,
-          serverType: gameMetadata.serverType,
-          players: gameMetadata.playerInfo.map(player => ({
-            name: player.playerName,
-            id: player.playerId,
-            team: player.playerTeamNumber
-          }))
-        });
-
-        // Fetching the demo data for the selected round
-        await initializeRoundData(gameMetadata, demoId, setError, selectedRound);
-
-        setMessage(`Successfully processed demo`);
-      } catch (infoError) {
-        setError(`Demo ingested but failed to fetch demo info: ${infoError instanceof Error ? infoError.message : 'Unknown error'}`);
-      }
-      
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     } catch (err) {
       setError(`Failed to upload file: ${err instanceof Error ? err.message : 'Unknown error'}. Make sure the backend server is running.`);
-    } finally {
-      setUploading(false);
+      return;
     }
-  };
+    setUploading(false);
 
-  const triggerFileSelect = () => {
-    fileInputRef.current?.click();
+    // Displaying the data now that we've finished processing the demo
+    await initializeGameData(demoId);
+  }
+
+  const handleViewExampleDemo = async () => {
+    // Triggers the example demo workflow
+    console.log('Viewing example demo');
+
+    setError('');
+    resetDemoData();
+
+    // Demo has already been processed, so we can skip straight to data initialization
+    await initializeGameData(EXAMPLE_DEMO_ID);
   };
 
   // Handle round selection
@@ -213,6 +228,17 @@ function App() {
     <div className="app">
       <h1>DemoLab</h1>
       
+      {/* Welcome text box - only shown when no demo has been ingested */}
+      {!demoMetadata && (
+        <div className="welcome-text-box">
+          <p>
+            Welcome to DemoLab!<br />
+            Upload a CS2 demo file (.dem) to get started with analyzing your gameplay<br />
+            These demo files can be downloaded from your own matches or from sources like HLTV
+          </p>
+        </div>
+      )}
+      
       <div className="upload-section">
         <input
           type="file"
@@ -231,20 +257,25 @@ function App() {
 
         {selectedFile && (
           <button
-            onClick={handleUpload}
+            onClick={handleDemoUpload}
             className="upload-btn"
             disabled={uploading}
           >
             {uploading ? 'Uploading...' : 'Upload & Ingest Demo'}
           </button>
         )}
-      </div>
 
-      {message && (
-        <div className="message success">
-          {message}
-        </div>
-      )}
+        {/* View example demo button - only shown when no demo has been ingested */}
+        {!demoMetadata && (
+          <button
+            onClick={handleViewExampleDemo}
+            className="example-demo-btn"
+            disabled={uploading}
+          >
+            View Example Demo
+          </button>
+        )}
+      </div>
 
       {error && (
         <div className="message error">
@@ -264,6 +295,7 @@ function App() {
               />
               <p className="loading-text-inline">Processing demo file...</p>
               <p className="loading-subtext-inline">This may take a few moments</p>
+              <p className="loading-subtext-inline">Will take longer for the first demo to cold start the server</p>
             </div>
           </div>
         </div>

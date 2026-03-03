@@ -83,15 +83,13 @@ export const useGameState = () => {
   /**
    * Fetches demo metadata and updates component state
    * @param demoId - ID of the demo we are using
-   * @param setMessage - Method to set the message displayed to the user, provided by the caller
    * @param setError - Method to set the error, provided by the caller
    * @returns GameMetadata object representing the metadata for that game. Only necessary if React async hooks are a dependency for something which needs to avoid race condition.
    */
-  const handleGetDemoMetadata = async (demoId: string, setMessage: (msg: string) => void, setError: (err: string) => void) => {
+  const handleGetDemoMetadata = async (demoId: string, setError: (err: string) => void) => {
     console.log(`Getting metadata for demo ${demoId}`);
     try {
       const metadata = await getDemoMetadata(demoId);
-      setMessage('Demo successfully processed');
       setDemoMetadata({ metadata });
       return metadata;
     } catch (error) {
